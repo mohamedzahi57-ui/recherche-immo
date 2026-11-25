@@ -1,0 +1,19 @@
+From: Wortimmo <alerte@wortimmo.lu>
+To: demo@example.com
+Subject: [DEMO] Votre alerte Wortimmo
+Date: Tue, 17 Nov 2026 12:05:00 +0100
+Message-ID: <demo-wortimmo-001@exemple.invalid>
+MIME-Version: 1.0
+Content-Type: text/html; charset="utf-8"
+
+<html><body>
+<p>Annonces EXEMPLES FICTIVES (zone frontalière)</p>
+<table>
+ <tr><td><a href="https://www.wortimmo.lu/fr/vente-appartement-audun-le-tiche-id_70000001">Appartement neuf - Audun-le-Tiche (France)</a></td></tr>
+ <tr><td>289 000 € | 68 m² | 2 chambres | rez-de-jardin | parking | terrasse | neuf</td></tr>
+ <tr><td><a href="https://www.wortimmo.lu/fr/vente-maison-arlon-id_70000002">Maison plain-pied - Arlon (Belgique)</a></td></tr>
+ <tr><td>345 000 € | 110 m² | 3 chambres | garage | jardin</td></tr>
+ <tr><td><a href="https://www.wortimmo.lu/fr/vente-appartement-thionville-id_70000003">Appartement - Thionville (France)</a></td></tr>
+ <tr><td>210 000 € | 64 m² | 2 chambres | 3e étage | parking</td></tr>
+</table>
+</body></html>

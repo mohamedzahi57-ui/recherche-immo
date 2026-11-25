@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block contenu %}
+{% macro lien_tri(cle, libelle) -%}
+  {%- set args = dict(f) -%}
+  {%- set _ = args.update({'tri': cle, 'ordre': ('asc' if (tri == cle and ordre == 'desc') else 'desc')}) -%}
+  <a href="{{ url_for('liste', **args) }}" class="{{ 'trie' if tri == cle }}">{{ libelle }}{% if tri == cle %} {{ '▲' if ordre == 'asc' else '▼' }}{% endif %}</a>
+{%- endmacro %}
+
+{% if statique %}
+{# Version en ligne (consultation) : pas de formulaire, seulement les deux vues et le tri par colonne #}
+<p class="filtres">
+  {% if f.get('tous') %}<a href="{{ url_for('liste') }}">Voir seulement les biens dans les critères</a>
+  {% else %}<a href="{{ url_for('liste', tous='1') }}">Voir aussi les biens hors critères</a>{% endif %}
+  · <span class="petit">Touchez un titre de colonne pour trier.</span>
+</p>
+{% else %}
+<details class="filtres" {% if f %}open{% endif %}>
+  <summary>Filtres et tri</summary>
+  <form method="get">
+    <div class="grille">
+      <label>Pays
+        <select name="pays">
+          <option value="">Tous</option>
+          {% for c, n in [('LU','Luxembourg'),('FR','France'),('BE','Belgique')] %}
+          <option value="{{ c }}" {{ 'selected' if f.get('pays') == c }}>{{ n }}</option>{% endfor %}
+        </select></label>
+      <label>Commune <input name="commune" value="{{ f.get('commune','') }}"></label>
+      <label>Type
+        <select name="type">
+          <option value="">Tous</option>
+          {% for t in ['maison','appartement','terrain'] %}
+          <option {{ 'selected' if f.get('type') == t }}>{{ t }}</option>{% endfor %}
+        </select></label>
+      <label>Prix min <input name="prix_min" inputmode="numeric" value="{{ f.get('prix_min','') }}"></label>
+      <label>Prix max <input name="prix_max" inputmode="numeric" value="{{ f.get('prix_max','') }}"></label>
+      <label>Prix/m² max <input name="prix_m2_max" inputmode="numeric" value="{{ f.get('prix_m2_max','') }}"></label>
+      <label>Surface min <input name="surface_min" inputmode="numeric" value="{{ f.get('surface_min','') }}"></label>
+      <label>Chambres min <input name="chambres_min" inputmode="numeric" value="{{ f.get('chambres_min','') }}"></label>
+      <label>Garage
+        <select name="garage">
+          <option value="">Indifférent</option>
+          <option value="garage" {{ 'selected' if f.get('garage') == 'garage' }}>Garage</option>
+          <option value="garage_ou_parking" {{ 'selected' if f.get('garage') == 'garage_ou_parking' }}>Garage ou parking</option>
+        </select></label>
+      <label>Voiture max (min) <input name="voiture_max" inputmode="numeric" value="{{ f.get('voiture_max','') }}"></label>
+      <label>Transports max (min) <input name="tc_max" inputmode="numeric" value="{{ f.get('tc_max','') }}"></label>
+      <label>Trier par
+        <select name="tri">
+          {% for c, n in [('score','Score'),('prix','Prix'),('prix_m2','Prix/m²'),('surface','Surface'),('chambres','Chambres'),('voiture','Trajet voiture'),('transports','Trajet transports'),('cout','Coût total'),('date',"Date d'ajout"),('commune','Commune')] %}
+          <option value="{{ c }}" {{ 'selected' if tri == c }}>{{ n }}</option>{% endfor %}
+        </select></label>
+    </div>
+    <label class="case"><input type="checkbox" name="tous" value="1" {{ 'checked' if f.get('tous') }}> Afficher aussi les biens hors critères</label>
+    <div class="actions">
+      <button type="submit">Appliquer</button>
+      <a href="{{ url_for('liste') }}">Réinitialiser</a>
+    </div>
+  </form>
+</details>
+{% endif %}
+
+<p class="compteur">{{ biens|length }} bien(s) affiché(s) sur {{ nb_total }} en base.
+{% if nb_total == 0 %}Aucun bien pour l'instant : allez sur <a href="{{ url_for('page_import') }}">Import</a> (vous pouvez essayer le mode démo).{% endif %}</p>
+
+<table class="tableau">
+  <thead><tr>
+    <th>{{ lien_tri('score', 'Score') }}</th>
+    <th>Bien</th>
+    <th>{{ lien_tri('commune', 'Commune') }}</th>
+    <th>{{ lien_tri('prix', 'Prix') }}</th>
+    <th>{{ lien_tri('surface', 'm²') }}</th>
+    <th>{{ lien_tri('prix_m2', '€/m²') }}</th>
+    <th>{{ lien_tri('chambres', 'Ch.') }}</th>
+    <th>Garage</th>
+    <th>{{ lien_tri('voiture', '🚗') }}</th>
+    <th>{{ lien_tri('transports', '🚆') }}</th>
+    <th>{{ lien_tri('cout', 'Coût total') }}</th>
+  </tr></thead>
+  <tbody>
+  {% for b in biens %}
+    <tr class="{{ 'hors' if b.hors_criteres }} {{ 'deux-ch' if (b.chambres or 0) >= p.chambres_ideal }}" onclick="location.href='{{ url_for('fiche', bien_id=b.id) }}'">
+      <td data-l="Score"><span class="score s{{ ((b.score or 0)//20)|int }}">{{ b.score|int if b.score is not none else '?' }}</span></td>
+      <td data-l="Bien"><a href="{{ url_for('fiche', bien_id=b.id) }}">{{ b.titre or 'Bien' }}</a>
+        {% if b.demo %}<span class="badge demo">démo</span>{% endif %}
+        {% if (b.chambres or 0) >= p.chambres_ideal %}<span class="badge ok">{{ b.chambres }} ch.</span>{% endif %}
+        {% if b.terrasse %}<span class="badge">terrasse</span>{% endif %}
+        {% if b.travaux %}<span class="badge alerte">travaux</span>{% endif %}
+        <div class="petit">{{ b.sources }}</div>
+        {% if b.hors_criteres %}<div class="petit rouge">Hors critères : {{ b.hors_criteres }}</div>{% endif %}
+      </td>
+      <td data-l="Commune">{{ b.commune or '?' }} {% if b.pays %}<span class="pays">{{ b.pays }}</span>{% endif %}</td>
+      <td data-l="Prix">{{ b.prix|euros }}</td>
+      <td data-l="Surface">{{ b.surface|int if b.surface else '—' }}</td>
+      <td data-l="€/m²">{{ b.prix_m2|euros }}</td>
+      <td data-l="Chambres">{{ b.chambres if b.chambres is not none else '?' }}</td>
+      <td data-l="Garage">{% if b.garage %}garage{% elif b.parking %}parking{% else %}?{% endif %}</td>
+      <td data-l="Voiture">{{ b.trajet_voiture_min|minutes }}{% if b.trajet_voiture_source == 'estimation' %}*{% endif %}</td>
+      <td data-l="Transports">{{ b.trajet_tc_min|minutes }}</td>
+      <td data-l="Coût total"><strong>{{ b.cout_total|euros }}</strong></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+<p class="petit">* trajet voiture estimé à vol d'oiseau (pas encore de clé OpenRouteService).</p>
+{% endblock %}

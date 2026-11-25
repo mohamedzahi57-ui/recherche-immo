@@ -1,0 +1,19 @@
+From: Immotop.lu <noreply@immotop.lu>
+To: demo@example.com
+Subject: [DEMO] Nouvelles annonces pour votre alerte
+Date: Tue, 17 Nov 2026 09:30:00 +0100
+Message-ID: <demo-immotop-001@exemple.invalid>
+MIME-Version: 1.0
+Content-Type: text/html; charset="utf-8"
+
+<html><body>
+<p>Annonces EXEMPLES FICTIVES</p>
+<div class="annonce">
+  <a href="https://www.immotop.lu/annonces/80000001/">Appartement 2 chambres - Bertrange</a>
+  <p>€ 469.000 - 77 m2 - 2 ch. - rez-de-chaussée - garage fermé</p>
+</div>
+<div class="annonce">
+  <a href="https://www.immotop.lu/annonces/80000002/">Maison - Mondercange</a>
+  <p>€ 620.000 - 140 m2 - 4 chambres - garage double</p>
+</div>
+</body></html>

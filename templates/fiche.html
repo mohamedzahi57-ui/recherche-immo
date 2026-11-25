@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block titre %}{{ b.titre }}{% endblock %}
+{% block contenu %}
+<p><a href="{{ url_for('liste') }}">← Retour à la liste</a></p>
+<h1>{{ b.titre or 'Bien' }} {% if b.demo %}<span class="badge demo">démo</span>{% endif %}</h1>
+{% if b.hors_criteres %}<div class="flash rouge">Hors critères : {{ b.hors_criteres }}</div>{% endif %}
+
+<div class="cartes">
+  <section class="carte">
+    <h2>Résumé</h2>
+    <div class="gros">{{ b.prix|euros }}</div>
+    <dl>
+      <dt>Score</dt><dd><span class="score s{{ ((b.score or 0)//20)|int }}">{{ b.score|int if b.score is not none else '?' }}</span> / 100</dd>
+      <dt>Commune</dt><dd>{{ b.commune or '?' }} {{ b.code_postal or '' }} ({{ b.pays or '?' }})</dd>
+      <dt>Type</dt><dd>{{ b.type_bien or '?' }}{% if b.plain_pied %}, plain-pied{% endif %}</dd>
+      <dt>Surface</dt><dd>{{ b.surface or '?' }} m²</dd>
+      <dt>Prix au m²</dt><dd>{{ b.prix_m2|euros }}</dd>
+      <dt>Étage</dt><dd>{{ b.etage or '?' }}</dd>
+      <dt>Chambres</dt><dd>{{ b.chambres if b.chambres is not none else '?' }}</dd>
+      <dt>Garage / parking</dt><dd>{{ b.garage|oui_non }} / {{ b.parking|oui_non }}</dd>
+      <dt>Terrasse</dt><dd>{{ b.terrasse|oui_non }}</dd>
+      <dt>Neuf</dt><dd>{{ b.neuf|oui_non }}</dd>
+      <dt>Travaux</dt><dd>{{ b.travaux|oui_non }}</dd>
+      {% if b.pays in ('FR','BE') %}<dt>Distance frontière</dt><dd>{{ b.distance_frontiere_km }} km</dd>{% endif %}
+    </dl>
+  </section>
+
+  <section class="carte">
+    <h2>Trajet jusqu'au travail</h2>
+    <dl>
+      <dt>🚗 Voiture</dt>
+      <dd>{{ b.trajet_voiture_min|minutes }}
+        <span class="petit">({{ b.trajet_voiture_source or 'non calculé' }}{% if b.trajet_voiture_source %}, +{{ p.majoration_trafic_pct }} % heure de pointe{% endif %})</span></dd>
+      <dt>🚆 Transports</dt>
+      <dd>{{ b.trajet_tc_min|minutes }} <span class="petit">({{ b.trajet_tc_source or 'non calculé' }})</span></dd>
+    </dl>
+    {% if b.lat %}
+    <p class="petit">
+      <a target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&origin={{ b.lat }},{{ b.lon }}&destination={{ p.travail_lat }},{{ p.travail_lon }}&travelmode=transit">Vérifier l'itinéraire (Google Maps)</a> ·
+      <a target="_blank" rel="noopener" href="https://www.openstreetmap.org/?mlat={{ b.lat }}&mlon={{ b.lon }}#map=13/{{ b.lat }}/{{ b.lon }}">Voir sur la carte</a>
+    </p>
+    <p class="petit">Position approximative : centre de la commune (l'adresse exacte n'est pas dans l'alerte).</p>
+    {% endif %}
+  </section>
+
+  <section class="carte">
+    <h2>Coût total</h2>
+    {% if frais %}
+    <table class="frais">
+      <tr><td>Prix du bien</td><td>{{ b.prix|euros }}</td></tr>
+      {% for lib, montant in frais.lignes %}
+      <tr class="{{ 'credit' if montant < 0 }}"><td>{{ lib }}</td><td>{{ montant|euros }}</td></tr>
+      {% endfor %}
+      <tr class="total"><td>Coût total</td><td>{{ frais.cout_total|euros }}</td></tr>
+    </table>
+    {% if frais.remarque %}<p class="petit">{{ frais.remarque }}</p>{% endif %}
+    <p class="petit">Estimation : barèmes modifiables dans Paramètres. Bëllegen Akt à vérifier chaque année sur guichet.lu.</p>
+    {% else %}<p>Prix inconnu : complétez la fiche ci-dessous.</p>{% endif %}
+  </section>
+
+  <section class="carte">
+    <h2>Détail du score</h2>
+    <table class="frais">
+      {% for lib, pts, maxi in detail_score %}
+      <tr><td>{{ lib }}</td><td>{{ pts }} / {{ maxi }}</td></tr>
+      {% endfor %}
+    </table>
+  </section>
+</div>
+
+<section class="carte">
+  <h2>Annonces ({{ annonces|length }})</h2>
+  <ul>
+  {% for a in annonces %}
+    <li><a href="{{ a.url }}" target="_blank" rel="noopener">{{ a.source }} — voir l'annonce</a>
+      <span class="petit">reçue le {{ a.date_reception }}</span></li>
+  {% endfor %}
+  </ul>
+  {% if annonces %}<details><summary class="petit">Texte extrait de l'e-mail</summary><p class="petit">{{ annonces[0].texte_brut }}</p></details>{% endif %}
+</section>
+
+{% if not statique %}
+<section class="carte">
+  <h2>Corriger / compléter la fiche</h2>
+  <p class="petit">Les alertes e-mail ne contiennent pas toujours tout : corrigez ici ce que vous lisez sur l'annonce.
+  Les champs corrigés ne seront plus modifiés par les imports. {% if b.champs_modifies %}(Déjà corrigés : {{ b.champs_modifies }}){% endif %}</p>
+  <form method="post" class="grille">
+    <label>Titre <input name="titre" value="{{ b.titre or '' }}"></label>
+    <label>Prix (€) <input name="prix" inputmode="numeric" value="{{ b.prix|int if b.prix else '' }}"></label>
+    <label>Surface (m²) <input name="surface" inputmode="decimal" value="{{ b.surface or '' }}"></label>
+    <label>Commune <input name="commune" value="{{ b.commune or '' }}"></label>
+    <label>Code postal <input name="code_postal" value="{{ b.code_postal or '' }}"></label>
+    <label>Pays
+      <select name="pays">{% for c in ['', 'LU', 'FR', 'BE'] %}<option {{ 'selected' if (b.pays or '') == c }}>{{ c }}</option>{% endfor %}</select></label>
+    <label>Type
+      <select name="type_bien">{% for c in ['', 'maison', 'appartement', 'terrain', 'autre'] %}<option {{ 'selected' if (b.type_bien or '') == c }}>{{ c }}</option>{% endfor %}</select></label>
+    <label>Étage <input name="etage" value="{{ b.etage or '' }}"></label>
+    <label>Chambres <input name="chambres" inputmode="numeric" value="{{ b.chambres if b.chambres is not none else '' }}"></label>
+    {% for c, lib in [('garage','Garage'),('parking','Parking'),('terrasse','Terrasse'),('neuf','Neuf'),('travaux','Travaux'),('plain_pied','Plain-pied'),('rez_de_chaussee','Rez-de-chaussée')] %}
+    <label>{{ lib }}
+      <select name="{{ c }}">
+        <option value="" {{ 'selected' if b[c] is none }}>?</option>
+        <option value="1" {{ 'selected' if b[c] == 1 }}>oui</option>
+        <option value="0" {{ 'selected' if b[c] == 0 }}>non</option>
+      </select></label>
+    {% endfor %}
+    <label>Trajet transports (min, manuel) <input name="trajet_tc_min" inputmode="numeric" value="{{ b.trajet_tc_min|int if b.trajet_tc_min is not none else '' }}"></label>
+    <div class="actions"><button type="submit">Enregistrer et recalculer</button></div>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

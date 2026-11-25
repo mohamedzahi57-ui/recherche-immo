@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block titre %}Import{% endblock %}
+{% block contenu %}
+<h1>Import des alertes e-mail</h1>
+
+<div class="cartes">
+<section class="carte">
+  <h2>État des connexions</h2>
+  <ul class="etat">
+    <li>{{ '✅' if etat.graph_compte else ('🟡' if etat.graph_configure else '⚪') }} Outlook / Hotmail (API Microsoft) :
+      {% if etat.graph_compte %}connecté ({{ etat.graph_compte }})
+      {% elif etat.graph_configure %}clé présente, connexion à faire ci-dessous
+      {% else %}non configuré (MS_CLIENT_ID dans .env){% endif %}</li>
+    <li>{{ '✅' if etat.imap_configure else '⚪' }} IMAP : {{ 'configuré' if etat.imap_configure else 'non configuré (facultatif)' }}</li>
+    <li>{{ '✅' if etat.ors else '⚪' }} Trajets voiture OpenRouteService : {{ 'clé présente' if etat.ors else "pas de clé (estimation à vol d'oiseau)" }}</li>
+    <li>{{ '✅' if etat.mobiliteit else '⚪' }} Transports en commun mobiliteit.lu : {{ 'clé présente' if etat.mobiliteit else 'pas de clé (saisie manuelle possible sur la fiche)' }}</li>
+  </ul>
+
+  {% if etat.graph_configure and not etat.graph_compte %}
+    {% if connexion.en_cours %}
+      <div class="flash">Allez sur <a href="{{ connexion.url }}" target="_blank" rel="noopener">{{ connexion.url }}</a>,
+        tapez le code <strong class="code">{{ connexion.code }}</strong> puis connectez-vous avec votre compte Hotmail.
+        Rechargez cette page ensuite.</div>
+    {% else %}
+      {% if connexion.erreur %}<div class="flash rouge">{{ connexion.erreur }}</div>{% endif %}
+      <form method="post" action="{{ url_for('connecter_outlook') }}"><button>Connecter Outlook</button></form>
+    {% endif %}
+  {% endif %}
+</section>
+
+<section class="carte">
+  <h2>Importer</h2>
+  <form method="post" action="{{ url_for('lancer_import') }}"><button>Importer maintenant</button></form>
+  <p class="petit">L'import se fait aussi tout seul toutes les {{ '' }}quelques heures tant que l'application est ouverte (voir Paramètres).</p>
+  <p class="petit">Vous pouvez aussi déposer des e-mails enregistrés (.eml) dans le dossier :<br><code>{{ etat.dossier_eml }}</code></p>
+  <h3>Mode démo</h3>
+  <p class="petit">Charge 3 e-mails d'exemple (annonces fictives) pour voir l'application fonctionner sans aucun compte.</p>
+  <form method="post" action="{{ url_for('import_demo') }}" class="enligne"><button>Charger la démo</button></form>
+  {% if nb_demo %}
+  <form method="post" action="{{ url_for('supprimer_demo') }}" class="enligne"><button class="secondaire">Supprimer les {{ nb_demo }} biens de démo</button></form>
+  {% endif %}
+</section>
+</div>
+
+<section class="carte">
+  <h2>Derniers e-mails lus</h2>
+  <table class="frais">
+    {% for e in emails %}
+    <tr><td>{{ e.date_reception }}</td><td>{{ e.expediteur }}</td><td>{{ e.sujet }}</td><td>{{ e.nb_annonces }} annonce(s)</td></tr>
+    {% else %}<tr><td>Aucun e-mail lu pour l'instant.</td></tr>{% endfor %}
+  </table>
+</section>
+
+<section class="carte">
+  <h2>Journal</h2>
+  <table class="frais">
+    {% for j in journal %}
+    <tr class="{{ 'rouge' if j.niveau == 'erreur' }}"><td class="petit">{{ j.date }}</td><td>{{ j.message }}</td></tr>
+    {% endfor %}
+  </table>
+</section>
+{% endblock %}

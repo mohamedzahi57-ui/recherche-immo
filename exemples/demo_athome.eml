@@ -1,0 +1,29 @@
+From: atHome <alertes@athome.lu>
+To: demo@example.com
+Subject: [DEMO] 3 nouvelles annonces correspondent à votre recherche
+Date: Tue, 17 Nov 2026 08:12:00 +0100
+Message-ID: <demo-athome-001@exemple.invalid>
+MIME-Version: 1.0
+Content-Type: text/html; charset="utf-8"
+
+<html><body>
+<h1>Vos nouvelles annonces (EXEMPLE FICTIF)</h1>
+<table>
+ <tr><td>
+  <a href="https://www.athome.lu/vente/appartement/bertrange/id-90000001.html"><img src="x.jpg" alt=""></a>
+  <div><a href="https://www.athome.lu/vente/appartement/bertrange/id-90000001.html">Appartement à Bertrange</a></div>
+  <div>465 000 €</div>
+  <div>78 m² · 2 chambres · Rez-de-chaussée · Garage · Terrasse</div>
+ </td></tr>
+ <tr><td>
+  <a href="https://www.athome.lu/vente/maison/differdange/id-90000002.html">Maison de plain-pied à Differdange</a>
+  <div>489 000 €</div>
+  <div>95 m² · 2 chambres · Emplacement parking · Travaux à prévoir</div>
+ </td></tr>
+ <tr><td>
+  <a href="https://www.athome.lu/vente/appartement/esch-sur-alzette/id-90000003.html">Appartement à Esch-sur-Alzette</a>
+  <div>395 000 €</div>
+  <div>56 m² · 1 chambre · 2e étage · Balcon</div>
+ </td></tr>
+</table>
+</body></html>

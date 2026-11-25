@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titre %}Recherche immo{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <!-- Application installable sur le téléphone (écran d'accueil) -->
+  <link rel="manifest" href="{{ url_for('manifest') }}">
+  <meta name="theme-color" content="#0b6e4f">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icones/apple-touch-icon.png') }}">
+  <script>
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("{{ url_for('service_worker') }}");
+  </script>
+</head>
+<body>
+<header class="barre">
+  <a class="logo" href="{{ url_for('liste') }}">🏠 Recherche immo</a>
+  <nav>
+    <a href="{{ url_for('liste') }}" class="{{ 'actif' if request.endpoint in ('liste','fiche') }}">Biens</a>
+    {% if statique %}
+    <span class="petit">Mis à jour le {{ mise_a_jour }}</span>
+    {% else %}
+    <a href="{{ url_for('page_import') }}" class="{{ 'actif' if request.endpoint == 'page_import' }}">Import</a>
+    <a href="{{ url_for('page_parametres') }}" class="{{ 'actif' if request.endpoint == 'page_parametres' }}">Paramètres</a>
+    {% endif %}
+  </nav>
+</header>
+<main>
+  {% with messages = get_flashed_messages() %}
+    {% for m in messages %}<div class="flash">{{ m }}</div>{% endfor %}
+  {% endwith %}
+  {% block contenu %}{% endblock %}
+</main>
+</body>
+</html>

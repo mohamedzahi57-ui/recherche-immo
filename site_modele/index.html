@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Recherche immo</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0b6e4f">
+  <link rel="icon" href="icones/icone-192.png">
+  <link rel="apple-touch-icon" href="icones/apple-touch-icon.png">
+  <style>
+/*CSS*/
+    #verrou { max-width: 360px; margin: 15vh auto; padding: 24px; text-align: center; }
+    #verrou input[type=password] { width: 100%; font-size: 18px; padding: 10px; margin: 12px 0; box-sizing: border-box; }
+    #verrou button { font-size: 18px; padding: 10px 24px; }
+    #erreur { color: #b00020; min-height: 1.4em; }
+  </style>
+</head>
+<body>
+<div id="verrou" class="carte">
+  <h1>🏠 Recherche immo</h1>
+  <form id="form-mdp">
+    <input type="password" id="mdp" placeholder="Mot de passe" autocomplete="current-password" autofocus>
+    <label class="case"><input type="checkbox" id="retenir" checked> Se souvenir sur cet appareil</label>
+    <p id="erreur"></p>
+    <button type="submit">Ouvrir</button>
+  </form>
+</div>
+<div id="app" hidden></div>
+<script>
+// Données chiffrées (AES-256-GCM, clé dérivée du mot de passe par PBKDF2-SHA256).
+const D = "__DONNEES__";
+let PAGES = null;
+
+const octets = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+
+async function dechiffrer(mdp) {
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(mdp), "PBKDF2", false, ["deriveKey"]);
+  const cle = await crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt: octets(D.sel), iterations: D.iter, hash: "SHA-256" },
+    base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+  const brut = await crypto.subtle.decrypt({ name: "AES-GCM", iv: octets(D.iv) }, cle, octets(D.ct));
+  const flux = new Blob([brut]).stream().pipeThrough(new DecompressionStream("gzip"));
+  return JSON.parse(await new Response(flux).text());
+}
+
+function aller(url) { location.hash = url; }
+
+function afficher() {
+  const url = decodeURIComponent(location.hash.slice(1)) || "/";
+  const app = document.getElementById("app");
+  app.innerHTML = PAGES[url] || PAGES["/"];
+  window.scrollTo(0, 0);
+}
+
+document.addEventListener("click", e => {
+  const a = e.target.closest("a");
+  const href = a && a.getAttribute("href");
+  if (href && href.startsWith("/")) { e.preventDefault(); e.stopPropagation(); aller(href); }
+}, true);
+
+async function ouvrir(mdp, retenir) {
+  PAGES = await dechiffrer(mdp);
+  if (retenir) { try { localStorage.setItem("immo_mdp", mdp); } catch (e) {} }
+  document.getElementById("verrou").hidden = true;
+  document.getElementById("app").hidden = false;
+  window.addEventListener("hashchange", afficher);
+  afficher();
+}
+
+document.getElementById("form-mdp").addEventListener("submit", async e => {
+  e.preventDefault();
+  const err = document.getElementById("erreur");
+  err.textContent = "Ouverture…";
+  try {
+    await ouvrir(document.getElementById("mdp").value, document.getElementById("retenir").checked);
+  } catch (x) {
+    err.textContent = "Mot de passe incorrect.";
+  }
+});
+
+(async () => {
+  let mdp = null;
+  try { mdp = localStorage.getItem("immo_mdp"); } catch (e) {}
+  if (mdp) {
+    try { await ouvrir(mdp, false); } catch (x) { try { localStorage.removeItem("immo_mdp"); } catch (e) {} }
+  }
+})();
+
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+</script>
+</body>
+</html>

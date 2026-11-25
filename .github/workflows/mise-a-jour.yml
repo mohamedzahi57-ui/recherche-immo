@@ -1,0 +1,88 @@
+# Version en ligne de l'application, sans le PC.
+# Toutes les 2 heures, GitHub (gratuitement) :
+#   1. récupère la base de données chiffrée (branche "donnees") et la déchiffre ;
+#   2. lit les nouvelles alertes e-mail dans Gmail (IMAP, lecture seule) ;
+#   3. fabrique le site de consultation, chiffré par mot de passe ;
+#   4. sauvegarde la base (chiffrée) et publie le site sur GitHub Pages.
+# Les clés et mots de passe sont des "secrets" GitHub : ils ne sont jamais dans le code.
+name: Mise à jour des annonces
+
+on:
+  schedule:
+    - cron: "17 */2 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: mise-a-jour
+  cancel-in-progress: false
+
+jobs:
+  mise-a-jour:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploiement.outputs.page_url }}
+    env:
+      IMAP_HOST: imap.gmail.com
+      IMAP_FOLDER: INBOX
+      IMAP_USER: ${{ secrets.IMAP_USER }}
+      IMAP_PASSWORD: ${{ secrets.IMAP_PASSWORD }}
+      ORS_API_KEY: ${{ secrets.ORS_API_KEY }}
+      SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
+      TZ: Europe/Luxembourg
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Installation
+        run: pip install -r requirements.txt
+
+      - name: Récupération de la base (chiffrée)
+        run: |
+          mkdir -p data
+          if git fetch --depth 1 origin donnees; then
+            git show origin/donnees:immo.db.chiffre > data/immo.db.chiffre
+            python -m immo.chiffrement dechiffrer data/immo.db.chiffre data/immo.db
+          else
+            echo "Pas encore de base : on part de zéro."
+          fi
+
+      - name: Import des alertes e-mail
+        run: python -c "from immo import db, importeur; db.initialiser(); print(importeur.importer())"
+
+      - name: Fabrication du site
+        run: python exporter_site.py
+
+      - name: Sauvegarde de la base (chiffrée, sans historique)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python -m immo.chiffrement chiffrer data/immo.db data/immo.db.chiffre
+          d=$(mktemp -d)
+          cp data/immo.db.chiffre "$d/"
+          cd "$d"
+          git init -q -b donnees
+          git add immo.db.chiffre
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -q -m "Base de données (chiffrée)"
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" donnees
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deploiement
+        uses: actions/deploy-pages@v4
