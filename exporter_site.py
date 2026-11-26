@@ -36,7 +36,8 @@ RE_LIEN = re.compile(r"""(?:href="|location\.href=')(/[^"']*)""")
 
 
 def _page_a_exporter(url):
-    return url == "/" or url.startswith("/?") or re.fullmatch(r"/bien/\d+", url)
+    # Une seule page liste : filtres et tri se font sur le téléphone (site_modele/index.html)
+    return url == "/" or re.fullmatch(r"/bien/\d+", url)
 
 
 def collecter_pages():
@@ -46,7 +47,7 @@ def collecter_pages():
     flask_app.jinja_env.globals["mise_a_jour"] = datetime.now(ZoneInfo("Europe/Luxembourg")).strftime(
         "%d/%m/%Y à %H:%M")
     client = flask_app.test_client()
-    pages, a_voir, vues = {}, deque(["/", "/?tous=1"]), set()
+    pages, a_voir, vues = {}, deque(["/"]), set()
     while a_voir and len(pages) < 3000:
         url = a_voir.popleft()
         if url in vues:

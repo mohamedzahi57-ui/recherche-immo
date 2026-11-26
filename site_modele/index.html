@@ -47,12 +47,129 @@ async function dechiffrer(mdp) {
 
 function aller(url) { location.hash = url; }
 
+// ---- Filtres et tri de la liste, faits sur l'appareil (mémorisés entre deux visites)
+let FILTRES = {}, TRI = { cle: "score", desc: true };
+try { FILTRES = JSON.parse(localStorage.getItem("immo_filtres") || "{}"); } catch (e) {}
+const nombre = v => (v === "" || v == null || isNaN(+v)) ? null : +v;
+
+function appliquerFiltres() {
+  const tb = document.querySelector("#app .tableau tbody");
+  if (!tb) return;
+  const f = FILTRES, n = k => nombre(f[k]);
+  const commune = (f.commune || "").trim().toLowerCase();
+  let vus = 0;
+  for (const tr of tb.rows) {
+    const d = tr.dataset, prix = nombre(d.prix), m2 = nombre(d.surface);
+    const ok = (f.tous || d.hors === "0")
+      && (n("score_min") == null || +d.score >= n("score_min"))
+      && (!commune || d.commune.includes(commune))
+      && (!f.type || d.type === f.type)
+      && (!f.pays || d.pays === f.pays)
+      && (n("prix_min") == null || (prix != null && prix >= n("prix_min")))
+      && (n("prix_max") == null || (prix != null && prix <= n("prix_max")))
+      && (n("m2_min") == null || (m2 != null && m2 >= n("m2_min")))
+      && (n("m2_max") == null || (m2 != null && m2 <= n("m2_max")));
+    tr.hidden = !ok;
+    if (ok) vus++;
+  }
+  const c = document.getElementById("compteur-js");
+  if (c) c.textContent = vus;
+  try { localStorage.setItem("immo_filtres", JSON.stringify(FILTRES)); } catch (e) {}
+}
+
+function trier() {
+  const tb = document.querySelector("#app .tableau tbody");
+  if (!tb) return;
+  const cle = TRI.cle, texte = cle === "commune";
+  const lignes = [...tb.rows].sort((a, b) => {
+    const x = texte ? a.dataset[cle] : nombre(a.dataset[cle]);
+    const y = texte ? b.dataset[cle] : nombre(b.dataset[cle]);
+    if (x == null || x === "") return 1;       // valeurs inconnues en fin de liste
+    if (y == null || y === "") return -1;
+    const r = texte ? x.localeCompare(y) : x - y;
+    return TRI.desc ? -r : r;
+  });
+  lignes.forEach(l => tb.appendChild(l));
+  document.querySelectorAll("#app [data-tri]").forEach(a => {
+    a.classList.toggle("trie", a.dataset.tri === cle);
+    a.textContent = a.textContent.replace(/ [▲▼]$/, "") + (a.dataset.tri === cle ? (TRI.desc ? " ▼" : " ▲") : "");
+  });
+}
+
+function brancherListe() {
+  const panneau = document.getElementById("filtres-js");
+  if (!panneau) return;
+  for (const el of panneau.querySelectorAll("[data-f]")) {
+    const k = el.dataset.f;
+    if (k === "raz") {
+      el.addEventListener("click", () => {
+        FILTRES = {}; TRI = { cle: "score", desc: true };
+        brancherValeurs(panneau); trier(); appliquerFiltres();
+      });
+      continue;
+    }
+    if (k === "tri") {
+      el.addEventListener("change", () => {
+        const [cle, desc] = el.value.split("|");
+        TRI = { cle, desc: desc === "1" }; FILTRES.tri = el.value;
+        trier(); appliquerFiltres();
+      });
+      continue;
+    }
+    el.addEventListener(el.tagName === "SELECT" || el.type === "checkbox" ? "change" : "input", () => {
+      FILTRES[k] = el.type === "checkbox" ? el.checked : el.value;
+      appliquerFiltres();
+    });
+  }
+  brancherValeurs(panneau);
+  if (FILTRES.tri) { const [cle, desc] = FILTRES.tri.split("|"); TRI = { cle, desc: desc === "1" }; }
+  if (Object.entries(FILTRES).some(([k, v]) => v && k !== "tri")) panneau.open = true;
+  if (TRI.cle !== "score" || !TRI.desc) trier();
+  appliquerFiltres();
+}
+
+function brancherValeurs(panneau) {
+  for (const el of panneau.querySelectorAll("[data-f]")) {
+    const v = FILTRES[el.dataset.f];
+    if (el.type === "checkbox") el.checked = !!v;
+    else if (el.dataset.f === "tri") el.value = v || "score|1";
+    else if (el.dataset.f !== "raz") el.value = v || "";
+  }
+}
+
+let LISTE = null, POSITION = 0, COURANTE = null;
+
 function afficher() {
   const url = decodeURIComponent(location.hash.slice(1)) || "/";
   const app = document.getElementById("app");
-  app.innerHTML = PAGES[url] || PAGES["/"];
-  window.scrollTo(0, 0);
+  const page = PAGES[url] ? url : "/";
+  if (COURANTE === "/" && LISTE) POSITION = window.scrollY;
+  if (page === "/") {
+    // la liste est construite une seule fois : elle garde ses filtres, son tri et sa position
+    if (!LISTE) {
+      LISTE = document.createElement("div");
+      LISTE.innerHTML = PAGES["/"];
+      app.replaceChildren(LISTE);
+      brancherListe();
+    } else {
+      app.replaceChildren(LISTE);
+    }
+    window.scrollTo(0, POSITION);
+  } else {
+    app.innerHTML = PAGES[page];
+    window.scrollTo(0, 0);
+  }
+  COURANTE = page;
 }
+
+document.addEventListener("click", e => {
+  const t = e.target.closest("#app [data-tri]");
+  if (!t) return;
+  e.preventDefault(); e.stopPropagation();
+  const cle = t.dataset.tri;   // 1er appui : du plus grand au plus petit pour score/m²/chambres, sinon croissant
+  TRI = { cle, desc: TRI.cle === cle ? !TRI.desc : ["score", "surface", "chambres"].includes(cle) };
+  trier();
+}, true);
 
 document.addEventListener("click", e => {
   const a = e.target.closest("a");

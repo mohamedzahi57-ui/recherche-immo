@@ -1,18 +1,37 @@
 {% extends "base.html" %}
 {% block contenu %}
 {% macro lien_tri(cle, libelle) -%}
+  {%- if statique -%}<a href="#" data-tri="{{ cle }}" class="{{ 'trie' if cle == 'score' }}">{{ libelle }}{% if cle == 'score' %} ▼{% endif %}</a>{%- else -%}
   {%- set args = dict(f) -%}
   {%- set _ = args.update({'tri': cle, 'ordre': ('asc' if (tri == cle and ordre == 'desc') else 'desc')}) -%}
-  <a href="{{ url_for('liste', **args) }}" class="{{ 'trie' if tri == cle }}">{{ libelle }}{% if tri == cle %} {{ '▲' if ordre == 'asc' else '▼' }}{% endif %}</a>
+  <a href="{{ url_for('liste', **args) }}" class="{{ 'trie' if tri == cle }}">{{ libelle }}{% if tri == cle %} {{ '▲' if ordre == 'asc' else '▼' }}{% endif %}</a>{%- endif -%}
 {%- endmacro %}
 
 {% if statique %}
 {# Version en ligne (consultation) : pas de formulaire, seulement les deux vues et le tri par colonne #}
-<p class="filtres">
-  {% if f.get('tous') %}<a href="{{ url_for('liste') }}">Voir seulement les biens dans les critères</a>
-  {% else %}<a href="{{ url_for('liste', tous='1') }}">Voir aussi les biens hors critères</a>{% endif %}
-  · <span class="petit">Touchez un titre de colonne pour trier.</span>
-</p>
+<details class="filtres" id="filtres-js">
+  <summary>Filtres</summary>
+  <div class="grille">
+    <label>Score min <input data-f="score_min" inputmode="numeric" placeholder="ex. 50"></label>
+    <label>Commune <input data-f="commune" placeholder="ex. Esch"></label>
+    <label>Type
+      <select data-f="type"><option value="">Tous</option><option>maison</option><option>appartement</option><option>terrain</option></select></label>
+    <label>Pays
+      <select data-f="pays"><option value="">Tous</option><option value="LU">Luxembourg</option><option value="FR">France</option><option value="BE">Belgique</option></select></label>
+    <label>Prix min <input data-f="prix_min" inputmode="numeric"></label>
+    <label>Prix max <input data-f="prix_max" inputmode="numeric"></label>
+    <label>m² min <input data-f="m2_min" inputmode="numeric"></label>
+    <label>m² max <input data-f="m2_max" inputmode="numeric"></label>
+    <label>Trier par
+      <select data-f="tri">
+        {% for c, n in [('score|1','Score (meilleur d\'abord)'),('prix|0','Prix (moins cher d\'abord)'),('surface|1','m² (plus grand d\'abord)'),('prix_m2|0','€/m² (moins cher d\'abord)'),('voiture|0','Trajet voiture (plus court)'),('cout|0','Coût total (moins cher)'),('commune|0','Commune (A → Z)')] %}
+        <option value="{{ c }}">{{ n }}</option>{% endfor %}
+      </select></label>
+  </div>
+  <label class="case"><input type="checkbox" data-f="tous"> Afficher aussi les biens hors critères</label>
+  <div class="actions"><button type="button" data-f="raz" class="secondaire">Réinitialiser</button></div>
+</details>
+<p class="petit">Touchez un titre de colonne pour trier.</p>
 {% else %}
 <details class="filtres" {% if f %}open{% endif %}>
   <summary>Filtres et tri</summary>
@@ -34,7 +53,9 @@
       <label>Prix min <input name="prix_min" inputmode="numeric" value="{{ f.get('prix_min','') }}"></label>
       <label>Prix max <input name="prix_max" inputmode="numeric" value="{{ f.get('prix_max','') }}"></label>
       <label>Prix/m² max <input name="prix_m2_max" inputmode="numeric" value="{{ f.get('prix_m2_max','') }}"></label>
-      <label>Surface min <input name="surface_min" inputmode="numeric" value="{{ f.get('surface_min','') }}"></label>
+      <label>Score min <input name="score_min" inputmode="numeric" value="{{ f.get('score_min','') }}"></label>
+      <label>m² min <input name="surface_min" inputmode="numeric" value="{{ f.get('surface_min','') }}"></label>
+      <label>m² max <input name="surface_max" inputmode="numeric" value="{{ f.get('surface_max','') }}"></label>
       <label>Chambres min <input name="chambres_min" inputmode="numeric" value="{{ f.get('chambres_min','') }}"></label>
       <label>Garage
         <select name="garage">
@@ -59,7 +80,7 @@
 </details>
 {% endif %}
 
-<p class="compteur">{{ biens|length }} bien(s) affiché(s) sur {{ nb_total }} en base.
+<p class="compteur">{% if statique %}<span id="compteur-js">{{ biens|rejectattr('hors_criteres')|list|length }}</span>{% else %}{{ biens|length }}{% endif %} bien(s) affiché(s) sur {{ nb_total }} en base.
 {% if nb_total == 0 %}Aucun bien pour l'instant : allez sur <a href="{{ url_for('page_import') }}">Import</a> (vous pouvez essayer le mode démo).{% endif %}</p>
 
 <table class="tableau">
@@ -78,7 +99,7 @@
   </tr></thead>
   <tbody>
   {% for b in biens %}
-    <tr class="{{ 'hors' if b.hors_criteres }} {{ 'deux-ch' if (b.chambres or 0) >= p.chambres_ideal }}" onclick="location.href='{{ url_for('fiche', bien_id=b.id) }}'">
+    <tr class="{{ 'hors' if b.hors_criteres }} {{ 'deux-ch' if (b.chambres or 0) >= p.chambres_ideal }}" onclick="location.href='{{ url_for('fiche', bien_id=b.id) }}'"{% if statique %} data-score="{{ b.score or 0 }}" data-commune="{{ (b.commune or '')|lower }}" data-type="{{ b.type_bien or '' }}" data-pays="{{ b.pays or '' }}" data-prix="{{ b.prix or '' }}" data-surface="{{ b.surface or '' }}" data-prix_m2="{{ b.prix_m2 or '' }}" data-chambres="{{ b.chambres if b.chambres is not none else '' }}" data-voiture="{{ b.trajet_voiture_min or '' }}" data-transports="{{ b.trajet_tc_min or '' }}" data-cout="{{ b.cout_total or '' }}" data-hors="{{ 1 if b.hors_criteres else 0 }}"{% if b.hors_criteres %} hidden{% endif %}{% endif %}>
       <td data-l="Score"><span class="score s{{ ((b.score or 0)//20)|int }}">{{ b.score|int if b.score is not none else '?' }}</span></td>
       <td data-l="Bien"><a href="{{ url_for('fiche', bien_id=b.id) }}">{{ b.titre or 'Bien' }}</a>
         {% if b.demo %}<span class="badge demo">démo</span>{% endif %}

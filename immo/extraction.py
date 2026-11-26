@@ -28,6 +28,7 @@ MOTIFS_ANNONCES = [
     ("Immotop", re.compile(r"immotop\.lu/(?:\w+/)*?annonces?/(\d{5,})", re.I)),
     ("Wortimmo", re.compile(r"wortimmo\.lu/.*?(\d{5,})", re.I)),
     ("SeLoger", re.compile(r"seloger\.com/annonces/.*?(\d{6,})", re.I)),
+    ("SeLoger", re.compile(r"seloger\.com/annonce/(?:[\w-]+/)*([A-Z0-9]{8,})(?:[/?#]|$)")),
     ("Leboncoin", re.compile(r"leboncoin\.fr/(?:ad/)?\w+/(\d{6,})", re.I)),
     ("Bien'ici", re.compile(r"bienici\.com/annonce/[\w-]*?([\w-]*\d{5,}[\w-]*)", re.I)),
     ("Logic-Immo", re.compile(r"logic-immo\.com/.*?(\d{6,})", re.I)),
@@ -190,7 +191,7 @@ def analyser_texte(texte, url=""):
     # Terrain : surface du terrain (m² ou ares), jusqu'à 1 ha
     if re.search(r"\b(?:terrain|bauland|grundstück)\b", tl) and "surface" not in champs:
         m = re.search(r"(\d{1,3}(?:[ .]\d{3})|\d{2,5})(?:[,.]\d{1,2})?\s*m\s?(?:²|2)", t) or \
-            re.search(r"(\d{1,3}(?:[,.]\d{1,2})?)\s*ares?\b", t)
+            re.search(r"(\d{1,3}(?:[,.]\d{1,2})?)\s*ares?(?![a-zà-ÿ])", t)
         if m:
             if "are" in m.group(0).lower():
                 v = float(m.group(1).replace(",", ".")) * 100
@@ -265,7 +266,8 @@ def analyser_texte(texte, url=""):
     else:
         # Commune hors de nos listes (ex. Trier, Toul) : on garde le nom, sans pays.
         # La géolocalisation trouvera le pays et le bien sera écarté s'il est trop loin.
-        m = RE_COMMUNE_ATHOME.search(t)
+        m = re.search(r"à vendre à ([A-ZÀ-Ý][\w'’À-ÿ-]*(?:[ -](?:sur|lès|les|la|le|de|[A-ZÀ-Ý][\w'’À-ÿ-]*))*)", t) \
+            or RE_COMMUNE_ATHOME.search(t)
         if m:
             champs["commune"] = re.split(r"\s+(?=\d)|\s+(?:EUR|€)", m.group(1))[0].strip(" -.")
     m = re.search(r"\bL-?\s?(\d{4})\b", t)
@@ -369,6 +371,11 @@ def annonce_manuelle(texte, url=""):
     """Annonce ajoutée à la main : texte copié depuis le site (et/ou son lien).
     Rien n'est téléchargé : on analyse seulement ce que vous avez collé."""
     texte = " ".join((texte or "").replace(" ", " ").replace("\xa0", " ").split())
+    # Texte copié d'une page : mots et nombres parfois collés (« Schifflange400 000 € »)
+    texte = re.sub(r"(?<=[a-zà-ÿ])(?=\d)|(?<=\d)(?=[A-Za-zÀ-ÿ€])|(?<=[a-zà-ÿ])(?=[A-ZÀ-Ý])", " ", texte)
+    # boutons des vignettes Immotop (« message », « Visite », « 1/7 », « top »…)
+    texte = re.sub(r"message(?= ?Visite)| ?Visite$|\b(?:top|nouveau|dès)\b|\b\d+ ?/ ?\d+\b", " ", texte)
+    texte = " ".join(texte.split())
     url = (url or "").strip()
     if not url:
         m = RE_URL.search(texte)
@@ -377,7 +384,7 @@ def annonce_manuelle(texte, url=""):
         url = deballer_url(url)
     source, ident = identifier_annonce(url) if url else (None, None)
     if not source:
-        source = "Ajout manuel"
+        source = "SeLoger Neuf" if "selogerneuf.com" in url else "Ajout manuel"
         ident = "m-" + hashlib.sha1((url or texte).lower().encode("utf-8")).hexdigest()[:12]
     a = {"source": source, "id_externe": ident, "url": url, "texte": texte}
     a.update(analyser_texte(RE_URL.sub(" ", texte), url))

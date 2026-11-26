@@ -83,7 +83,7 @@ def oui_non(v):
 def liste():
     f = request.args
     conditions, valeurs = [], []
-    if not f.get("tous"):
+    if not f.get("tous") and not app.jinja_env.globals.get("statique"):
         conditions.append("(hors_criteres IS NULL OR hors_criteres = '')")
     if f.get("pays"):
         conditions.append("pays = ?")
@@ -93,6 +93,7 @@ def liste():
         valeurs.append(f"%{f['commune'].lower()}%")
     for champ, op, cle in (("prix", "<=", "prix_max"), ("prix", ">=", "prix_min"), ("surface", ">=", "surface_min"),
                            ("chambres", ">=", "chambres_min"), ("prix_m2", "<=", "prix_m2_max"),
+                           ("score", ">=", "score_min"), ("surface", "<=", "surface_max"),
                            ("trajet_voiture_min", "<=", "voiture_max"), ("trajet_tc_min", "<=", "tc_max")):
         if f.get(cle):
             try:
