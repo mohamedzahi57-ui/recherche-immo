@@ -35,6 +35,7 @@ jobs:
       IMAP_USER: ${{ secrets.IMAP_USER }}
       IMAP_PASSWORD: ${{ secrets.IMAP_PASSWORD }}
       ORS_API_KEY: ${{ secrets.ORS_API_KEY }}
+      MOBILITEIT_API_KEY: ${{ secrets.MOBILITEIT_API_KEY }}
       SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
       TZ: Europe/Luxembourg
     steps:
