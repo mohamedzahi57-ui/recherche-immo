@@ -121,6 +121,36 @@ def _cle_immotop_par_href(soup):
     return cles
 
 
+def _cartes_seloger(soup):
+    """SeLoger : chaque élément d'une vignette a son propre lien de suivi chiffré
+    (click.by.seloger.com). On repère donc chaque vignette par son bouton « Voir l'annonce »
+    et on identifie l'annonce par l'empreinte de son texte (type, pièces, surface, commune, prix)."""
+    def est_bouton(a):
+        return "voir l'annonce" in a.get_text(" ").lower().replace("’", "'")
+
+    cartes = {}
+    for bouton in [a for a in soup.find_all("a", href=True) if est_bouton(a)]:
+        carte, noeud = None, bouton
+        for _ in range(15):
+            noeud = noeud.parent
+            if noeud is None or noeud.name in ("body", "html", "[document]"):
+                break
+            if sum(1 for a in noeud.find_all("a", href=True) if est_bouton(a)) > 1:
+                break
+            if len(" ".join(noeud.get_text(" ").split())) > 400:   # on sort de la vignette
+                break
+            carte = noeud
+        if carte is None:
+            continue
+        texte = " ".join(carte.get_text(" ").replace(" ", " ").replace("\xa0", " ").split())
+        if not RE_PRIX.search(texte):
+            continue
+        empreinte = hashlib.sha1(texte.lower().encode("utf-8")).hexdigest()[:12]
+        cartes[("SeLoger", "t-" + empreinte)] = {"source": "SeLoger", "id_externe": "t-" + empreinte,
+                                                 "url": bouton["href"], "texte": texte}
+    return cartes
+
+
 def identifier_annonce(url):
     """Retourne (source, identifiant) si l'URL est une annonce reconnue, sinon (None, None)."""
     for source, motif in MOTIFS_ANNONCES:
@@ -174,6 +204,11 @@ def analyser_texte(texte, url=""):
         champs["chambres"] = int(m.group(1))
     elif re.search(r"\bstudio\b", tl):
         champs["chambres"] = 0
+    else:
+        # Annonces françaises : « 4 pièces » = séjour + 3 chambres (estimation)
+        m = re.search(r"(\d{1,2})\s*pi[eè]ces?\b", tl)
+        if m and int(m.group(1)) >= 2:
+            champs["chambres"] = int(m.group(1)) - 1
 
     # Type de bien
     # (\b = mot entier : "chaussée" ne doit pas être lu comme "haus")
@@ -302,6 +337,9 @@ def extraire_annonces(message):
                     annonces[cle]["texte"] = texte
                 continue
             annonces[cle] = {"source": source, "id_externe": ident, "url": url, "texte": texte}
+
+        if not annonces and "seloger.com" in html:
+            annonces.update(_cartes_seloger(soup))
 
     if not annonces and texte_brut:
         # E-mail en texte simple : on découpe autour de chaque lien

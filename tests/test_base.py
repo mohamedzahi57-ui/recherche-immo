@@ -120,3 +120,19 @@ def test_terrain_et_prefabrique():
     p = dict(parametres.DEFAUTS)
     assert score.verifier_criteres(dict(t, pays="LU"), p) == []
     assert score.verifier_criteres(dict(t, pays="LU", prix=300000), p)
+
+
+def test_seloger_vignettes():
+    from immo import extraction
+    html = ("<table><tr><td><a href='https://click.by.seloger.com/?qs=a1'>361&#8239;000&nbsp;€</a>"
+            "<a href='https://click.by.seloger.com/?qs=a2'>Maison à vendre</a>"
+            "<a href='https://click.by.seloger.com/?qs=a3'>4 pièces · 147 m²</a>"
+            "<a href='https://click.by.seloger.com/?qs=a4'>Volmerange-les-Mines (57330)</a>"
+            "<a href='https://click.by.seloger.com/?qs=a5'>Voir l'annonce</a></td></tr>"
+            "<tr><td><a href='https://click.by.seloger.com/?qs=b1'>99 000 €</a> Terrain constructible "
+            "Audun-le-Tiche (57390) <a href='https://click.by.seloger.com/?qs=b2'>Voir l'annonce</a></td></tr></table>")
+    a = extraction.extraire_annonces({"html": html, "text": "", "subject": "seloger.com"})
+    assert len(a) == 2
+    m = [x for x in a if x["type_bien"] == "maison"][0]
+    assert m["prix"] == 361000 and m["surface"] == 147 and m["chambres"] == 3 and m["pays"] == "FR"
+    assert [x for x in a if x["type_bien"] == "terrain"][0]["prix"] == 99000
