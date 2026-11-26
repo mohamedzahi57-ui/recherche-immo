@@ -30,6 +30,8 @@ def verifier_criteres(b, p):
 
     if type_bien == "terrain" and not p["accepter_terrains"]:
         raisons.append("terrain non recherché")
+    if type_bien == "terrain" and "non constructible" in ((b.get("description") or "") + (b.get("titre") or "")).lower():
+        raisons.append("terrain non constructible")
     if type_bien == "appartement" and b.get("surface") and b["surface"] < p["surface_min_appart"]:
         if not (b.get("rez_de_chaussee") and p["accepter_rdc_petit"]):
             raisons.append(f"appartement de {b['surface']:g} m² < {p['surface_min_appart']} m²")
