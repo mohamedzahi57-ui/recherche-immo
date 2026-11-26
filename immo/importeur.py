@@ -8,7 +8,7 @@ from . import boite_mail, extraction, frais, geo, parametres, score
 from .db import connecter, journaliser, maintenant
 
 CHAMPS_ANNONCE = ["titre", "prix", "surface", "commune", "code_postal", "pays", "type_bien", "etage",
-                  "chambres", "garage", "parking", "terrasse", "neuf", "travaux", "plain_pied",
+                  "chambres", "garage", "parking", "terrasse", "neuf", "travaux", "plain_pied", "prefabrique",
                   "rez_de_chaussee"]
 
 _verrou_import = threading.Lock()

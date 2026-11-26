@@ -19,7 +19,9 @@ DEFINITIONS = [
     ("chambres_min", 1, "Chambres minimum", "Critères", "int", ""),
     ("chambres_ideal", 2, "Chambres idéal", "Critères", "int", ""),
     ("accepter_travaux", True, "Accepter les biens avec travaux", "Critères", "bool", ""),
-    ("accepter_terrains", False, "Afficher les terrains (module V3)", "Critères", "bool", ""),
+    ("accepter_terrains", True, "Accepter les terrains à bâtir", "Critères", "bool", ""),
+    ("prix_max_terrain", 250000, "Terrain : prix maximum (EUR)", "Critères", "int",
+     "Laisse la place pour construire (ex. maison préfabriquée) dans le budget total."),
     # --- Zone géographique
     ("pays_actifs", "LU,FR,BE", "Pays recherchés (LU,FR,BE)", "Zone", "text", "Ordre = priorité."),
     ("distance_frontiere_max_km", 5.0, "France/Belgique : distance max à la frontière (km)", "Zone", "float",

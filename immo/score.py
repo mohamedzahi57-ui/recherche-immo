@@ -14,8 +14,10 @@ def verifier_criteres(b, p):
     raisons = []
     pays_actifs = [x.strip().upper() for x in p["pays_actifs"].split(",") if x.strip()]
 
-    if b.get("prix") and b["prix"] > p["prix_max"]:
-        raisons.append(f"prix {b['prix']:,.0f} € > {p['prix_max']:,} €".replace(",", " "))
+    type_bien = b.get("type_bien")
+    pmax = p["prix_max_terrain"] if type_bien == "terrain" else p["prix_max"]
+    if b.get("prix") and b["prix"] > pmax:
+        raisons.append(f"prix {b['prix']:,.0f} € > {pmax:,} €".replace(",", " "))
     if b.get("pays") and b["pays"] not in pays_actifs:
         raisons.append(f"pays {b['pays']} non recherché")
     if b.get("pays") in ("FR", "BE") and b.get("distance_frontiere_km") is not None \
@@ -26,9 +28,8 @@ def verifier_criteres(b, p):
     if b.get("travaux") and not p["accepter_travaux"]:
         raisons.append("travaux")
 
-    type_bien = b.get("type_bien")
     if type_bien == "terrain" and not p["accepter_terrains"]:
-        raisons.append("terrain (module V3)")
+        raisons.append("terrain non recherché")
     if type_bien == "appartement" and b.get("surface") and b["surface"] < p["surface_min_appart"]:
         if not (b.get("rez_de_chaussee") and p["accepter_rdc_petit"]):
             raisons.append(f"appartement de {b['surface']:g} m² < {p['surface_min_appart']} m²")
@@ -103,13 +104,15 @@ def calculer_score(b, p):
     # Prix : plein si 30 % sous le maximum ou moins, 0 au maximum
     prix = b.get("prix")
     if prix:
-        part = max(0.0, min(1.0, (p["prix_max"] - prix) / (0.3 * p["prix_max"])))
+        pmax = p["prix_max_terrain"] if b.get("type_bien") == "terrain" else p["prix_max"]
+        part = max(0.0, min(1.0, (pmax - prix) / (0.3 * pmax)))
     else:
         part = 0.0
     detail.append(("Prix", p["poids_prix"] * part, p["poids_prix"]))
 
     # Plain-pied / rez-de-chaussée
-    part = 1.0 if (b.get("plain_pied") or b.get("rez_de_chaussee")) else 0.0
+    # (un terrain permet de construire de plain-pied)
+    part = 1.0 if (b.get("plain_pied") or b.get("rez_de_chaussee") or b.get("type_bien") == "terrain") else 0.0
     detail.append(("Plain-pied / RDC", p["poids_type"] * part, p["poids_type"]))
 
     total = sum(pts for _, pts, _ in detail)

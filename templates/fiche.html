@@ -12,7 +12,7 @@
     <dl>
       <dt>Score</dt><dd><span class="score s{{ ((b.score or 0)//20)|int }}">{{ b.score|int if b.score is not none else '?' }}</span> / 100</dd>
       <dt>Commune</dt><dd>{{ b.commune or '?' }} {{ b.code_postal or '' }} ({{ b.pays or '?' }})</dd>
-      <dt>Type</dt><dd>{{ b.type_bien or '?' }}{% if b.plain_pied %}, plain-pied{% endif %}</dd>
+      <dt>Type</dt><dd>{{ b.type_bien or '?' }}{% if b.plain_pied %}, plain-pied{% endif %}{% if b.prefabrique %}, préfabriquée{% endif %}</dd>
       <dt>Surface</dt><dd>{{ b.surface or '?' }} m²</dd>
       <dt>Prix au m²</dt><dd>{{ b.prix_m2|euros }}</dd>
       <dt>Étage</dt><dd>{{ b.etage or '?' }}</dd>
@@ -96,7 +96,7 @@
       <select name="type_bien">{% for c in ['', 'maison', 'appartement', 'terrain', 'autre'] %}<option {{ 'selected' if (b.type_bien or '') == c }}>{{ c }}</option>{% endfor %}</select></label>
     <label>Étage <input name="etage" value="{{ b.etage or '' }}"></label>
     <label>Chambres <input name="chambres" inputmode="numeric" value="{{ b.chambres if b.chambres is not none else '' }}"></label>
-    {% for c, lib in [('garage','Garage'),('parking','Parking'),('terrasse','Terrasse'),('neuf','Neuf'),('travaux','Travaux'),('plain_pied','Plain-pied'),('rez_de_chaussee','Rez-de-chaussée')] %}
+    {% for c, lib in [('garage','Garage'),('parking','Parking'),('terrasse','Terrasse'),('neuf','Neuf'),('travaux','Travaux'),('plain_pied','Plain-pied'),('rez_de_chaussee','Rez-de-chaussée'),('prefabrique','Préfabriquée')] %}
     <label>{{ lib }}
       <select name="{{ c }}">
         <option value="" {{ 'selected' if b[c] is none }}>?</option>

@@ -27,10 +27,10 @@ TRIS = {
     "date": "date_ajout", "commune": "commune",
 }
 CHAMPS_EDITABLES = ["titre", "prix", "surface", "commune", "code_postal", "pays", "type_bien", "etage",
-                    "chambres", "garage", "parking", "terrasse", "neuf", "travaux", "plain_pied",
+                    "chambres", "garage", "parking", "terrasse", "neuf", "travaux", "plain_pied", "prefabrique",
                     "rez_de_chaussee", "trajet_tc_min"]
 CHAMPS_NUMERIQUES = {"prix", "surface", "chambres", "garage", "parking", "terrasse", "neuf", "travaux",
-                     "plain_pied", "rez_de_chaussee", "trajet_tc_min"}
+                     "plain_pied", "rez_de_chaussee", "trajet_tc_min", "prefabrique"}
 
 
 # ---------------------------------------------------------------- protection par mot de passe

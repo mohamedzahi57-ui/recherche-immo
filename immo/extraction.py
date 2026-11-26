@@ -157,6 +157,17 @@ def analyser_texte(texte, url=""):
         if 15 <= v <= 1000:
             champs["surface"] = v
             break
+    # Terrain : surface du terrain (m² ou ares), jusqu'à 1 ha
+    if re.search(r"\b(?:terrain|bauland|grundstück)\b", tl) and "surface" not in champs:
+        m = re.search(r"(\d{1,3}(?:[ .]\d{3})|\d{2,5})(?:[,.]\d{1,2})?\s*m\s?(?:²|2)", t) or \
+            re.search(r"(\d{1,3}(?:[,.]\d{1,2})?)\s*ares?\b", t)
+        if m:
+            if "are" in m.group(0).lower():
+                v = float(m.group(1).replace(",", ".")) * 100
+            else:
+                v = _nombre(m.group(1))
+            if 50 <= v <= 10000:
+                champs["surface"] = v
 
     m = RE_CHAMBRES.search(t)
     if m:
@@ -190,6 +201,10 @@ def analyser_texte(texte, url=""):
             champs["rez_de_chaussee"] = 0
     if re.search(r"plain[- ]pied|bungalow|de plain pied", tl):
         champs["plain_pied"] = 1
+    if re.search(r"pr[ée]fabriqu|pr[ée]-fabriqu|modulaire|ossature bois|maison bois|maison en bois|"
+                 r"fertighaus|holzhaus|kit house|tiny house|container", tl):
+        champs["prefabrique"] = 1
+        champs.setdefault("type_bien", "maison")
 
     # Équipements (on ne met 1 que si c'est mentionné ; sinon inconnu)
     if re.search(r"garage|box ferm", tl):

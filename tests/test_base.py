@@ -109,3 +109,14 @@ def test_immotop_liens_chiffres():
     assert a["source"] == "Immotop" and a["id_externe"].startswith("t-")
     assert a["prix"] == 1198000 and a["surface"] == 82 and a["chambres"] == 2
     assert a["commune"] == "Strassen" and a["type_bien"] == "appartement"
+
+
+def test_terrain_et_prefabrique():
+    from immo import extraction, parametres, score
+    t = extraction.analyser_texte("Terrain à bâtir 6,5 ares Bettembourg 245 000 €")
+    assert t["type_bien"] == "terrain" and t["surface"] == 650
+    m = extraction.analyser_texte("Maison préfabriquée ossature bois 110 m² Dudelange 420 000 €")
+    assert m["prefabrique"] == 1 and m["type_bien"] == "maison"
+    p = dict(parametres.DEFAUTS)
+    assert score.verifier_criteres(dict(t, pays="LU"), p) == []
+    assert score.verifier_criteres(dict(t, pays="LU", prix=300000), p)

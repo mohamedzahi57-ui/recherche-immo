@@ -83,6 +83,8 @@
       <td data-l="Bien"><a href="{{ url_for('fiche', bien_id=b.id) }}">{{ b.titre or 'Bien' }}</a>
         {% if b.demo %}<span class="badge demo">démo</span>{% endif %}
         {% if (b.chambres or 0) >= p.chambres_ideal %}<span class="badge ok">{{ b.chambres }} ch.</span>{% endif %}
+        {% if b.type_bien == 'terrain' %}<span class="badge ok">terrain</span>{% endif %}
+        {% if b.prefabrique %}<span class="badge ok">préfabriquée</span>{% endif %}
         {% if b.terrasse %}<span class="badge">terrasse</span>{% endif %}
         {% if b.travaux %}<span class="badge alerte">travaux</span>{% endif %}
         <div class="petit">{{ b.sources }}</div>

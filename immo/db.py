@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS biens (
     travaux INTEGER,
     plain_pied INTEGER,
     rez_de_chaussee INTEGER,
+    prefabrique INTEGER,       -- maison préfabriquée / modulaire / ossature bois
     description TEXT,
     lat REAL,
     lon REAL,
@@ -123,6 +124,10 @@ def initialiser():
     """Crée les tables si elles n'existent pas encore."""
     with connecter() as conn:
         conn.executescript(SCHEMA)
+        # colonnes ajoutées après coup (bases existantes)
+        colonnes = {r[1] for r in conn.execute("PRAGMA table_info(biens)")}
+        if "prefabrique" not in colonnes:
+            conn.execute("ALTER TABLE biens ADD COLUMN prefabrique INTEGER")
 
 
 def maintenant():
