@@ -127,10 +127,43 @@ def recalculer_tout(conn, avec_reseau=False):
 
 
 # ---------------------------------------------------------------- import principal
+MOT_CLE_AJOUT = "#immo"
+
+
+def est_ajout_par_email(m):
+    """E-mail que vous vous envoyez à vous-même avec « #immo » dans l'objet
+    (ex. depuis le téléphone : Partager l'annonce > Gmail). Seule votre propre adresse est acceptée."""
+    moi = (os.getenv("IMAP_USER") or "").strip().lower()
+    return bool(moi) and MOT_CLE_AJOUT in (m.get("subject") or "").lower() \
+        and moi in (m.get("from") or "").lower()
+
+
+def ajouter_manuellement(conn, texte, url, p, origine="formulaire"):
+    """Ajoute un bien à partir du texte et/ou du lien collés. Retourne (résultat, id du bien)."""
+    a = extraction.annonce_manuelle(texte, url)
+    message = {"id": f"{origine}:{a['source']}:{a['id_externe']}", "date": maintenant()[:16]}
+    res = enregistrer_annonce(conn, a, message)
+    row = conn.execute("SELECT bien_id FROM annonces WHERE source = ? AND id_externe = ?",
+                       (a["source"], a["id_externe"])).fetchone()
+    bien_id = row["bien_id"] if row else None
+    if bien_id and res != "deja_vu":
+        enrichir_bien(conn, bien_id, p)
+    return res, bien_id
+
+
 def traiter_messages(conn, messages, p, demo=False):
     stats = {"emails": 0, "nouveaux": 0, "doublons": 0, "ignores": 0}
     for m in messages:
         if conn.execute("SELECT 1 FROM emails_traites WHERE message_id = ?", (m["id"],)).fetchone():
+            continue
+        if est_ajout_par_email(m):
+            texte = m.get("text") or extraction.BeautifulSoup(m.get("html") or "", "html.parser").get_text(" ")
+            res, _ = ajouter_manuellement(conn, texte, "", p, origine="email")
+            stats["nouveaux" if res == "nouveau" else "doublons"] += res != "deja_vu"
+            conn.execute("INSERT OR IGNORE INTO emails_traites VALUES (?,?,?,?,?,?,?)",
+                         (m["id"], m["subject"], m["from"], m["date"], 1, m["origine"], maintenant()))
+            conn.commit()
+            stats["emails"] += 1
             continue
         if m["origine"] != "fichier" and not boite_mail.expediteur_autorise(m["from"], p["expediteurs_alertes"]):
             stats["ignores"] += 1

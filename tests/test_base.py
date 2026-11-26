@@ -136,3 +136,16 @@ def test_seloger_vignettes():
     m = [x for x in a if x["type_bien"] == "maison"][0]
     assert m["prix"] == 361000 and m["surface"] == 147 and m["chambres"] == 3 and m["pays"] == "FR"
     assert [x for x in a if x["type_bien"] == "terrain"][0]["prix"] == 99000
+
+
+def test_ajout_manuel(monkeypatch):
+    from immo import extraction, importeur
+    a = extraction.annonce_manuelle("Maison plain-pied 3 ch 120 m2 Perl 420.000 EUR",
+                                    "https://www.athome.lu/vente/maison/perl/id-7654321.html")
+    assert (a["source"], a["id_externe"]) == ("atHome", "7654321")
+    assert a["prix"] == 420000 and a["surface"] == 120 and a["commune"] == "Perl"
+    b = extraction.annonce_manuelle("Terrain 5 ares Bettembourg 240 000 €")
+    assert b["source"] == "Ajout manuel" and b["type_bien"] == "terrain"
+    monkeypatch.setenv("IMAP_USER", "moi@example.com")
+    assert importeur.est_ajout_par_email({"subject": "Fwd: belle maison #immo", "from": "Moi <moi@example.com>"})
+    assert not importeur.est_ajout_par_email({"subject": "#immo", "from": "autre@example.com"})

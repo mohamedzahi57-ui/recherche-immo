@@ -21,6 +21,7 @@
     {% if statique %}
     <span class="petit">Mis à jour le {{ mise_a_jour }}</span>
     {% else %}
+    <a href="{{ url_for('ajouter') }}" class="{{ 'actif' if request.endpoint == 'ajouter' }}">+ Ajouter</a>
     <a href="{{ url_for('page_import') }}" class="{{ 'actif' if request.endpoint == 'page_import' }}">Import</a>
     <a href="{{ url_for('page_parametres') }}" class="{{ 'actif' if request.endpoint == 'page_parametres' }}">Paramètres</a>
     {% endif %}

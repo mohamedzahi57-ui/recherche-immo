@@ -141,3 +141,13 @@ Python 3 + Flask, SQLite et des pages HTML générées côté serveur, sans fram
 | `immo/score.py` | critères et score |
 | `immo/parametres.py` | liste de tous les paramètres modifiables |
 | `tests/test_base.py` | tests automatiques : `.venv\Scripts\python -m pytest` |
+
+## 4 quater. Ajouter à la main une annonce déjà en ligne
+
+Les alertes n'envoient que les **nouvelles** annonces. Pour une annonce déjà publiée qui vous intéresse :
+
+- **Sur le PC** : menu **+ Ajouter**, collez le lien et le texte de l'annonce (type, prix, surface, commune), puis « Ajouter ».
+- **Depuis le téléphone** : sur l'annonce, **Partager → Gmail**, envoyez-la **à votre propre adresse** avec **#immo** dans l'objet
+  (ajoutez prix et surface dans le message s'ils manquent). Le bien apparaît à la prochaine mise à jour.
+
+L'appli ne visite jamais les sites : elle lit uniquement le texte que vous fournissez.

@@ -166,6 +166,26 @@ def fiche(bien_id):
                            p=p, budget=p["prix_max"])
 
 
+@app.route("/ajouter", methods=["GET", "POST"])
+@protege
+def ajouter():
+    """Ajout à la main d'une annonce vue sur un site (texte et/ou lien collés)."""
+    if request.method == "POST":
+        texte = request.form.get("texte", "")
+        url = request.form.get("url", "")
+        if not (texte.strip() or url.strip()):
+            flash("Collez au moins le texte ou le lien de l'annonce.")
+            return redirect(url_for("ajouter"))
+        with db.connecter() as conn:
+            p = parametres.lire(conn)
+            res, bien_id = importeur.ajouter_manuellement(conn, texte, url, p)
+        flash({"nouveau": "Bien ajouté. Vérifiez et complétez la fiche si besoin.",
+               "doublon": "Ce bien était déjà dans la liste (même commune, prix et surface) : fiche complétée.",
+               "deja_vu": "Cette annonce est déjà dans la liste."}[res])
+        return redirect(url_for("fiche", bien_id=bien_id)) if bien_id else redirect(url_for("ajouter"))
+    return render_template("ajouter.html")
+
+
 @app.route("/parametres", methods=["GET", "POST"])
 @protege
 def page_parametres():

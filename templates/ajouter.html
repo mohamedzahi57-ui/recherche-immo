@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block titre %}Ajouter un bien{% endblock %}
+{% block contenu %}
+<h1>Ajouter un bien</h1>
+<p class="petit">Pour une annonce déjà en ligne que les alertes n'ont pas envoyée. Ouvrez l'annonce sur le site,
+copiez son texte (au minimum : type, prix, surface, commune) et collez-le ici avec son lien.
+L'appli ne va pas sur le site : elle lit seulement ce que vous collez.</p>
+
+<form method="post" class="carte">
+  <label>Lien de l'annonce
+    <input name="url" type="url" inputmode="url" placeholder="https://www.athome.lu/…/id-1234567.html" style="width:100%"></label>
+  <label>Texte de l'annonce
+    <textarea name="texte" rows="9" style="width:100%"
+      placeholder="Ex. : Appartement 2 chambres, 78 m², rez-de-chaussée, terrasse, garage – Bertrange – 489 000 €"></textarea></label>
+  <div class="actions"><button>Ajouter</button></div>
+</form>
+
+<section class="carte">
+  <h2>Depuis le téléphone</h2>
+  <p>Sur l'annonce, touchez <b>Partager</b> puis <b>Gmail</b>, et envoyez-la <b>à votre propre adresse</b>
+  avec <b>#immo</b> dans l'objet. Ajoutez le prix et la surface dans le message s'ils n'y sont pas.
+  Le bien apparaîtra à la prochaine mise à jour (toutes les 2 h en ligne, 4 h sur le PC).</p>
+</section>
+{% endblock %}

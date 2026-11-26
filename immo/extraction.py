@@ -267,7 +267,7 @@ def analyser_texte(texte, url=""):
         # La géolocalisation trouvera le pays et le bien sera écarté s'il est trop loin.
         m = RE_COMMUNE_ATHOME.search(t)
         if m:
-            champs["commune"] = m.group(1).strip(" -.")
+            champs["commune"] = re.split(r"\s+(?=\d)|\s+(?:EUR|€)", m.group(1))[0].strip(" -.")
     m = re.search(r"\bL-?\s?(\d{4})\b", t)
     if m:
         champs["code_postal"] = "L-" + m.group(1)
@@ -360,6 +360,29 @@ def extraire_annonces(message):
         a["titre"] = _titre(a)
         resultat.append(a)
     return resultat
+
+
+RE_URL = re.compile(r"https?://[^\s<>\"]+")
+
+
+def annonce_manuelle(texte, url=""):
+    """Annonce ajoutée à la main : texte copié depuis le site (et/ou son lien).
+    Rien n'est téléchargé : on analyse seulement ce que vous avez collé."""
+    texte = " ".join((texte or "").replace(" ", " ").replace("\xa0", " ").split())
+    url = (url or "").strip()
+    if not url:
+        m = RE_URL.search(texte)
+        url = m.group(0).rstrip(">).,;") if m else ""
+    if url:
+        url = deballer_url(url)
+    source, ident = identifier_annonce(url) if url else (None, None)
+    if not source:
+        source = "Ajout manuel"
+        ident = "m-" + hashlib.sha1((url or texte).lower().encode("utf-8")).hexdigest()[:12]
+    a = {"source": source, "id_externe": ident, "url": url, "texte": texte}
+    a.update(analyser_texte(RE_URL.sub(" ", texte), url))
+    a["titre"] = _titre(a)
+    return a
 
 
 def _titre(a):
