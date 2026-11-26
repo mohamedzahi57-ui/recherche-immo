@@ -155,6 +155,20 @@ def traiter_messages(conn, messages, p, demo=False):
     return stats
 
 
+def _relire_alertes_immotop(conn):
+    """Une seule fois : les alertes Immotop lues avant que l'appli sache les décoder
+    (0 annonce trouvée) sont oubliées pour être relues. Retourne la date de la plus ancienne."""
+    if conn.execute("SELECT 1 FROM parametres WHERE cle = '_relu_immotop'").fetchone():
+        return None
+    filtre = ("FROM emails_traites WHERE nb_annonces = 0 AND expediteur LIKE '%immotop%' "
+              "AND sujet LIKE '%nouvelle%annonce%'")
+    plus_ancienne = conn.execute("SELECT min(date_reception) d " + filtre).fetchone()["d"]
+    conn.execute("DELETE " + filtre)
+    conn.execute("INSERT OR REPLACE INTO parametres(cle, valeur) VALUES ('_relu_immotop', 'true')")
+    conn.commit()
+    return plus_ancienne
+
+
 def importer(demo_dossier=None):
     """Lance un import complet. Retourne un résumé texte."""
     if not _verrou_import.acquire(blocking=False):
@@ -166,6 +180,9 @@ def importer(demo_dossier=None):
             derniere = conn.execute("SELECT max(date_traitement) d FROM emails_traites "
                                     "WHERE origine != 'fichier'").fetchone()["d"]
             depuis = boite_mail.date_depart(derniere, p["import_jours_historique"])
+            a_relire = _relire_alertes_immotop(conn)
+            if a_relire:
+                depuis = min(depuis, boite_mail.date_depart(a_relire, 0))
 
             messages = []
             if demo_dossier:

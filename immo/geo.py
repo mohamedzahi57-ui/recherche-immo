@@ -93,19 +93,24 @@ def geolocaliser(conn, requete):
         return row["lat"], row["lon"], row["pays"]
 
     lat = lon = pays = None
-    try:
-        if os.getenv("ORS_API_KEY"):
+    ors_ok = False
+    if os.getenv("ORS_API_KEY"):
+        try:
+            # Adresse 2026 du géocodeur OpenRouteService (l'ancienne répond « 410 Gone »)
             r = requests.get(
-                "https://api.openrouteservice.org/geocode/search",
-                params={"api_key": os.getenv("ORS_API_KEY"), "text": requete,
-                        "boundary.country": "LU,FR,BE,DE", "size": 1},
-                headers={"User-Agent": AGENT}, timeout=20)
+                "https://api.heigit.org/pelias/v1/search",
+                params={"text": requete, "boundary.country": "LU,FR,BE,DE", "size": 1},
+                headers={"Authorization": os.getenv("ORS_API_KEY"), "User-Agent": AGENT}, timeout=20)
             r.raise_for_status()
             feats = r.json().get("features") or []
             if feats:
                 lon, lat = feats[0]["geometry"]["coordinates"]
                 pays = PAYS_ISO.get((feats[0]["properties"].get("country_a") or "").lower())
-        else:
+            ors_ok = True
+        except (requests.RequestException, ValueError, KeyError) as e:
+            print(f"[geo] OpenRouteService indisponible pour '{requete}', essai Nominatim : {e}")
+    try:
+        if not ors_ok:
             # Nominatim : 1 requête par seconde maximum (règle d'utilisation)
             attente = 1.1 - (time.time() - _dernier_appel_nominatim[0])
             if attente > 0:
