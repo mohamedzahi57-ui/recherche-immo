@@ -112,7 +112,6 @@
         {% if b.terrasse %}<span class="badge">terrasse</span>{% endif %}
         {% if b.travaux %}<span class="badge alerte">travaux</span>{% endif %}
         {% if b is ancienne(seuil_ancien) %}<span class="badge alerte">ancienne annonce</span>{% endif %}
-        <div class="petit">{{ b.sources }}</div>
         {% if b.hors_criteres %}<div class="petit rouge">Hors critères : {{ b.hors_criteres }}</div>{% endif %}
       </td>
       <td data-l="Commune">{{ b.commune or '?' }}{% if b.quartier %} <span class="quartier">– {{ b.quartier }}</span>{% endif %} {% if b.pays %}<span class="pays">{{ b.pays }}</span>{% endif %}</td>
