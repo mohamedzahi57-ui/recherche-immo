@@ -48,7 +48,7 @@ def collecter_pages():
         "%d/%m/%Y à %H:%M")
     client = flask_app.test_client()
     pages, a_voir, vues = {}, deque(["/"]), set()
-    while a_voir and len(pages) < 3000:
+    while a_voir and len(pages) < 20000:
         url = a_voir.popleft()
         if url in vues:
             continue

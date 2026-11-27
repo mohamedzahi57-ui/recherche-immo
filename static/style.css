@@ -1,4 +1,6 @@
 /* Style simple, lisible sur ordinateur et sur téléphone */
+/* Un élément masqué (par les filtres, par exemple) reste masqué, même sur téléphone */
+[hidden] { display: none !important; }
 :root {
   --fond: #f4f6f8; --carte: #fff; --texte: #1d2733; --doux: #66727f; --bord: #dde3e9;
   --accent: #0b6e4f; --accent-clair: #e3f3ec; --rouge: #b42318; --orange: #b54708;
