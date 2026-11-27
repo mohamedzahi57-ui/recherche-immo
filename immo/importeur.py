@@ -1,5 +1,6 @@
 """Chef d'orchestre : lit les e-mails, extrait les annonces, supprime les doublons,
 puis calcule pour chaque bien : position, trajets, frais, critères et score."""
+import json
 import os
 import shutil
 import threading
@@ -259,6 +260,21 @@ def completer_quartiers(conn):
     conn.commit()
 
 
+def recalculer_si_reglages_changes(conn, p):
+    """Si un réglage a changé depuis le dernier calcul (ex. pondération du score), recalcule tous les biens.
+    Sert aussi à la version en ligne, qui reçoit les nouveaux réglages par défaut avec le code."""
+    signature = json.dumps({k: v for k, v in p.items() if not k.startswith("_")}, sort_keys=True)
+    ancienne = conn.execute("SELECT valeur FROM parametres WHERE cle = '_signature_reglages'").fetchone()
+    if ancienne and ancienne["valeur"] == signature:
+        return False
+    recalculer_tout(conn)
+    conn.execute("INSERT OR REPLACE INTO parametres(cle, valeur) VALUES ('_signature_reglages', ?)", (signature,))
+    conn.commit()
+    if ancienne:
+        journaliser(conn, "Réglages modifiés : scores et critères recalculés pour tous les biens.")
+    return True
+
+
 def importer(demo_dossier=None):
     """Lance un import complet. Retourne un résumé texte."""
     if not _verrou_import.acquire(blocking=False):
@@ -300,6 +316,7 @@ def importer(demo_dossier=None):
             for row in a_enrichir:
                 enrichir_bien(conn, row["id"], p)
             completer_quartiers(conn)
+            recalculer_si_reglages_changes(conn, p)
 
             resume = (f"Import terminé : {stats['emails']} e-mail(s) lu(s), {stats['nouveaux']} nouveau(x) "
                       f"bien(s), {stats['doublons']} doublon(s) regroupé(s), {stats['ignores']} e-mail(s) "

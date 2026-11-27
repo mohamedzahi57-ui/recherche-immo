@@ -15,7 +15,8 @@ DEFINITIONS = [
      "Un appartement en rez-de-chaussée est accepté même plus petit."),
     ("accepter_rdc_petit", True, "Accepter un rez-de-chaussée sous cette surface", "Critères", "bool", ""),
     ("maison_plain_pied_obligatoire", False, "Maison : exiger le plain-pied", "Critères", "bool",
-     "Si décoché, une maison à étage reste visible mais perd des points."),
+     "Si décoché, une maison à étage reste visible mais perd des points. Attention : les annonces "
+     "précisent rarement le plain-pied, cocher masquerait presque toutes les maisons."),
     ("chambres_min", 1, "Chambres minimum", "Critères", "int", ""),
     ("chambres_ideal", 2, "Chambres idéal", "Critères", "int", ""),
     ("accepter_travaux", True, "Accepter les biens avec travaux", "Critères", "bool", ""),
@@ -60,21 +61,21 @@ DEFINITIONS = [
     ("jours_annonce_ancienne", 60, "Badge « ancienne annonce » après (jours)", "Import", "int",
      "Immotop et SeLoger ne peuvent pas être vérifiés : un bien vu seulement chez eux depuis plus "
      "longtemps que cela, et jamais confirmé en ligne sur atHome, est signalé « peut-être vendu ». 0 = jamais."),
-    ("import_intervalle_heures", 4, "Intervalle entre deux imports (heures)", "Import", "int", ""),
+    ("import_intervalle_heures", 2, "Intervalle entre deux imports (heures)", "Import", "int", ""),
     ("import_jours_historique", 30, "Au premier import, remonter de N jours", "Import", "int", ""),
     ("expediteurs_alertes",
      "athome.lu,immotop.lu,wortimmo.lu,seloger.com,leboncoin.fr,bienici.com,logic-immo.com,immoweb.be,zimmo.be",
      "Domaines des expéditeurs d'alertes", "Import", "text",
      "Seuls les e-mails venant de ces domaines sont lus."),
     # --- Pondération du score (total conseillé = 100)
-    ("poids_pays", 20, "Score : pays (LU plein, FR moitié, BE quart)", "Score", "int", ""),
+    ("poids_pays", 10, "Score : pays (LU plein, FR moitié, BE quart)", "Score", "int", ""),
     ("poids_chambres", 20, "Score : chambres (2 = plein, 1 = 40 %)", "Score", "int", ""),
     ("poids_garage", 15, "Score : garage (parking = 2/3)", "Score", "int", ""),
-    ("poids_terrasse", 5, "Score : terrasse", "Score", "int", ""),
+    ("poids_terrasse", 15, "Score : terrasse", "Score", "int", ""),
     ("poids_trajet_voiture", 15, "Score : trajet voiture court", "Score", "int", ""),
-    ("poids_trajet_tc", 10, "Score : trajet transports ≤ maximum", "Score", "int", ""),
+    ("poids_trajet_tc", 5, "Score : trajet transports ≤ maximum", "Score", "int", ""),
     ("poids_prix", 10, "Score : prix bas par rapport au maximum", "Score", "int", ""),
-    ("poids_type", 5, "Score : plain-pied / rez-de-chaussée", "Score", "int", ""),
+    ("poids_type", 10, "Score : plain-pied / rez-de-chaussée", "Score", "int", ""),
 ]
 
 DEFAUTS = {d[0]: d[1] for d in DEFINITIONS}
