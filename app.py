@@ -8,6 +8,7 @@ import os
 import socket
 import threading
 import time
+from datetime import datetime, timedelta
 from functools import wraps
 
 from dotenv import load_dotenv
@@ -15,7 +16,7 @@ from flask import Flask, Response, flash, jsonify, redirect, render_template, re
 
 load_dotenv()  # lit le fichier .env (clés et mots de passe)
 
-from immo import boite_mail, db, frais, importeur, parametres, score  # noqa: E402
+from immo import boite_mail, db, frais, importeur, parametres, retraits, score  # noqa: E402
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET", "cle-locale-" + str(os.getpid()))
@@ -77,6 +78,25 @@ def oui_non(v):
     return {1: "oui", 0: "non"}.get(v, "?")
 
 
+# ---------------------------------------------------------------- annonces anciennes
+# derniere_vue : dernière fois qu'une alerte a montré le bien ; confirme : vu en ligne par la vérification atHome
+SQL_ANCIENNETE = ("(SELECT max(date_reception) FROM annonces a WHERE a.bien_id = b.id) derniere_vue, "
+                  "(SELECT count(*) FROM annonces a WHERE a.bien_id = b.id AND COALESCE(a.retiree, 0) != 1 "
+                  "AND a.verifie_le IS NOT NULL) confirme")
+
+
+def seuil_ancien(p):
+    """Date (AAAA-MM-JJ) avant laquelle un bien non confirmé est « ancienne annonce » (None = désactivé)."""
+    jours = p.get("jours_annonce_ancienne") or 0
+    return (datetime.now() - timedelta(days=jours)).strftime("%Y-%m-%d") if jours > 0 else None
+
+
+@app.template_test("ancienne")
+def est_ancienne(b, seuil):
+    return bool(seuil and b["derniere_vue"] and b["derniere_vue"][:10] < seuil and not b["confirme"]
+                and b["statut"] != "retiré")
+
+
 # ---------------------------------------------------------------- pages
 @app.route("/")
 @protege
@@ -87,6 +107,15 @@ def liste():
         conditions.append("(hors_criteres IS NULL OR hors_criteres = '')")
     if not f.get("retires"):  # annonces disparues des sites (voir immo/retraits.py)
         conditions.append("COALESCE(statut, '') != 'retiré'")
+    with db.connecter() as conn:
+        seuil = seuil_ancien(parametres.lire(conn))
+    if seuil and not f.get("anciennes") and not app.jinja_env.globals.get("statique"):
+        # vu seulement par une alerte de plus de N jours, jamais confirmé en ligne (Immotop, SeLoger)
+        conditions.append(
+            "NOT (substr((SELECT max(date_reception) FROM annonces a WHERE a.bien_id = b.id), 1, 10) < ? "
+            "AND NOT EXISTS (SELECT 1 FROM annonces a WHERE a.bien_id = b.id AND COALESCE(a.retiree, 0) != 1 "
+            "AND a.verifie_le IS NOT NULL))")
+        valeurs.append(seuil)
     if f.get("pays"):
         conditions.append("pays = ?")
         valeurs.append(f["pays"])
@@ -117,12 +146,12 @@ def liste():
     with db.connecter() as conn:
         biens = conn.execute(
             f"SELECT b.*, (SELECT group_concat(source, ', ') FROM annonces a WHERE a.bien_id = b.id) sources, "
-            f"(SELECT url FROM annonces a WHERE a.bien_id = b.id LIMIT 1) url "
+            f"(SELECT url FROM annonces a WHERE a.bien_id = b.id LIMIT 1) url, {SQL_ANCIENNETE} "
             f"FROM biens b {where} ORDER BY {tri} IS NULL, {tri} {ordre}, score DESC", valeurs).fetchall()
         nb_total = conn.execute("SELECT count(*) n FROM biens WHERE COALESCE(statut, '') != 'retiré'").fetchone()["n"]
         p = parametres.lire(conn)
     return render_template("liste.html", biens=biens, f=f, tri=f.get("tri", "score"), ordre=ordre.lower(),
-                           nb_total=nb_total, p=p)
+                           nb_total=nb_total, p=p, seuil_ancien=seuil_ancien(p))
 
 
 @app.route("/bien/<int:bien_id>", methods=["GET", "POST"])
@@ -159,14 +188,34 @@ def fiche(bien_id):
             flash("Fiche enregistrée et recalculée.")
             return redirect(url_for("fiche", bien_id=bien_id))
 
-        b = conn.execute("SELECT * FROM biens WHERE id = ?", (bien_id,)).fetchone()
+        b = conn.execute(f"SELECT b.*, {SQL_ANCIENNETE} FROM biens b WHERE id = ?", (bien_id,)).fetchone()
         if not b:
             return "Bien introuvable", 404
         annonces = conn.execute("SELECT * FROM annonces WHERE bien_id = ? ORDER BY id", (bien_id,)).fetchall()
+        corps_retrait = retraits.corps_email_retrait(conn, bien_id)
     detail_frais = frais.calculer_frais(b["prix"], b["pays"], b["neuf"], p)
     note, detail_score = score.calculer_score(dict(b), p)
     return render_template("fiche.html", b=b, annonces=annonces, frais=detail_frais, detail_score=detail_score,
-                           p=p, budget=p["prix_max"])
+                           p=p, budget=p["prix_max"], seuil_ancien=seuil_ancien(p),
+                           corps_retrait=corps_retrait, moi=os.getenv("IMAP_USER", ""))
+
+
+@app.route("/bien/<int:bien_id>/retirer", methods=["POST"])
+@protege
+def retirer(bien_id):
+    """Vous avez constaté que l'annonce n'existe plus (ex. Immotop, SeLoger) : le bien quitte la liste."""
+    with db.connecter() as conn:
+        conn.execute("UPDATE biens SET statut = 'retiré', date_retrait = ? WHERE id = ?",
+                     (db.maintenant()[:10], bien_id))
+        conn.commit()
+        corps = retraits.corps_email_retrait(conn, bien_id)
+    try:  # la version en ligne a sa propre base : on la prévient par un e-mail à vous-même
+        boite_mail.envoyer_a_soi(f"{retraits.MOT_CLE_RETRAIT} annonce retirée", corps)
+        flash("Bien retiré de la liste. Le téléphone sera mis à jour au prochain passage de la routine "
+              "(moins de 2 h).")
+    except Exception as e:
+        flash(f"Bien retiré de la liste du PC, mais l'e-mail pour le téléphone n'a pas pu partir ({e}).")
+    return redirect(url_for("fiche", bien_id=bien_id))
 
 
 @app.route("/bien/<int:bien_id>/remettre", methods=["POST"])

@@ -60,7 +60,7 @@ function appliquerFiltres() {
   let vus = 0;
   for (const tr of tb.rows) {
     const d = tr.dataset, prix = nombre(d.prix), m2 = nombre(d.surface);
-    const ok = (f.tous || d.hors === "0")
+    const ok = (f.tous || d.hors === "0") && (f.anciennes || d.ancienne !== "1")
       && (n("score_min") == null || +d.score >= n("score_min"))
       && (!commune || d.commune.includes(commune))
       && (!f.type || d.type === f.type)

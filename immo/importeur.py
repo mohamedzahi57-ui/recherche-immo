@@ -4,7 +4,7 @@ import os
 import shutil
 import threading
 
-from . import boite_mail, extraction, frais, geo, parametres, quartiers, score
+from . import boite_mail, extraction, frais, geo, parametres, quartiers, retraits, score
 from .db import connecter, journaliser, maintenant
 
 CHAMPS_ANNONCE = ["titre", "prix", "surface", "commune", "code_postal", "pays", "type_bien", "etage",
@@ -161,6 +161,14 @@ def traiter_messages(conn, messages, p, demo=False):
     stats = {"emails": 0, "nouveaux": 0, "doublons": 0, "ignores": 0}
     for m in messages:
         if conn.execute("SELECT 1 FROM emails_traites WHERE message_id = ?", (m["id"],)).fetchone():
+            continue
+        if retraits.est_email_retrait(m):
+            texte = m.get("text") or extraction.BeautifulSoup(m.get("html") or "", "html.parser").get_text("\n")
+            retraits.appliquer_email_retrait(conn, texte)
+            conn.execute("INSERT OR IGNORE INTO emails_traites VALUES (?,?,?,?,?,?,?)",
+                         (m["id"], m["subject"], m["from"], m["date"], 0, m["origine"], maintenant()))
+            conn.commit()
+            stats["emails"] += 1
             continue
         if est_ajout_par_email(m):
             texte = m.get("text") or extraction.BeautifulSoup(m.get("html") or "", "html.parser").get_text(" ")

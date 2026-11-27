@@ -10,6 +10,7 @@ Un bien est marqué « retiré » (statut = 'retiré') quand au moins une de ses
 disparu et qu'aucune autre n'a été vue encore en ligne. Il disparaît de la liste (PC et
 téléphone) mais reste dans la base : rien n'est effacé, on peut le remettre depuis la fiche.
 """
+import os
 import re
 import time
 
@@ -99,6 +100,54 @@ def retirer_si_disparu(conn, bien_id):
                      (db.maintenant()[:10], bien_id))
         return True
     return False
+
+
+# ---------------------------------------------------------------- retrait signalé par vous
+# Le PC et la version en ligne ont chacun leur base : un retrait fait sur le PC part donc par
+# e-mail (à vous-même, objet « #retire »), que la routine en ligne lit comme les alertes.
+MOT_CLE_RETRAIT = "#retire"
+RE_CLE = re.compile(r"annonce\s*:\s*([^|\n]+?)\s*\|\s*(\S+)", re.I)
+
+
+def est_email_retrait(m):
+    moi = (os.getenv("IMAP_USER") or "").strip().lower()
+    return bool(moi) and MOT_CLE_RETRAIT in (m.get("subject") or "").lower() \
+        and moi in (m.get("from") or "").lower()
+
+
+def corps_email_retrait(conn, bien_id):
+    """Texte de l'e-mail : une ligne « annonce: source|identifiant » par annonce du bien, plus les liens."""
+    lignes = ["Annonce retirée du site : ce bien sera retiré de la liste (PC et téléphone).", ""]
+    for a in conn.execute("SELECT source, id_externe, url FROM annonces WHERE bien_id = ?", (bien_id,)):
+        lignes.append(f"annonce: {a['source']}|{a['id_externe']}")
+        if a["url"]:
+            lignes.append(a["url"])
+    return "\n".join(lignes)
+
+
+def appliquer_email_retrait(conn, texte):
+    """Retire les biens désignés dans l'e-mail (clés « annonce: » ou liens d'annonce). Renvoie leur nombre."""
+    from . import extraction
+    biens = set()
+    for source, ident in RE_CLE.findall(texte or ""):
+        r = conn.execute("SELECT bien_id FROM annonces WHERE source = ? AND id_externe = ?",
+                         (source.strip(), ident.strip())).fetchone()
+        if r:
+            biens.add(r["bien_id"])
+    for url in extraction.RE_URL.findall(texte or ""):
+        source, ident = extraction.identifier_annonce(url)
+        if source:
+            r = conn.execute("SELECT bien_id FROM annonces WHERE source = ? AND id_externe = ?",
+                             (source, ident)).fetchone()
+            if r:
+                biens.add(r["bien_id"])
+    for bien_id in biens:
+        conn.execute("UPDATE biens SET statut = 'retiré', date_retrait = COALESCE(date_retrait, ?) WHERE id = ?",
+                     (db.maintenant()[:10], bien_id))
+    conn.commit()
+    if biens:
+        db.journaliser(conn, f"Retrait signalé par e-mail : {len(biens)} bien(s) retiré(s) de la liste.")
+    return len(biens)
 
 
 if __name__ == "__main__":

@@ -57,6 +57,9 @@ DEFINITIONS = [
      "Wallonie, habitation propre et unique : droits 3 % (depuis 2025) + notaire/TVA/frais. À vérifier."),
     # --- Import
     ("import_auto", True, "Import automatique des e-mails", "Import", "bool", ""),
+    ("jours_annonce_ancienne", 60, "Badge « ancienne annonce » après (jours)", "Import", "int",
+     "Immotop et SeLoger ne peuvent pas être vérifiés : un bien vu seulement chez eux depuis plus "
+     "longtemps que cela, et jamais confirmé en ligne sur atHome, est signalé « peut-être vendu ». 0 = jamais."),
     ("import_intervalle_heures", 4, "Intervalle entre deux imports (heures)", "Import", "int", ""),
     ("import_jours_historique", 30, "Au premier import, remonter de N jours", "Import", "int", ""),
     ("expediteurs_alertes",

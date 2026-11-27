@@ -246,3 +246,18 @@ def date_depart(derniere_date, jours_historique):
         except ValueError:
             pass
     return datetime.now() - timedelta(days=jours_historique)
+
+
+def envoyer_a_soi(sujet, corps):
+    """Envoie un e-mail à votre propre adresse (même compte et même mot de passe d'application que l'IMAP)."""
+    import smtplib
+    from email.message import EmailMessage
+    moi = os.getenv("IMAP_USER")
+    hote = os.getenv("SMTP_HOST") or (os.getenv("IMAP_HOST") or "").replace("imap.", "smtp.", 1)
+    msg = EmailMessage()
+    msg["From"] = msg["To"] = moi
+    msg["Subject"] = sujet
+    msg.set_content(corps)
+    with smtplib.SMTP_SSL(hote, 465, timeout=30) as smtp:
+        smtp.login(moi, os.getenv("IMAP_PASSWORD"))
+        smtp.send_message(msg)

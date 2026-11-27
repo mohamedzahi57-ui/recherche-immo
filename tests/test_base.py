@@ -224,3 +224,33 @@ def test_noms_de_rue():
     assert t("Appartement rez-de-chaussée, Schifflange")[0] == "Schifflange"
     assert t("Appartement 2 chambres neuf, rez-de-chaussée, Nocher, Nocher-Route, Goesdorf")[0] == "Goesdorf"
     assert t("400 000 € Appartement - 1 chambre - 52 m 2 Belval")[0] == "Esch-sur-Alzette"
+
+
+def test_retrait_par_email_et_annonces_anciennes(monkeypatch, tmp_path):
+    from immo import db, retraits
+    monkeypatch.setattr(db, "CHEMIN_DB", str(tmp_path / "t.db"))
+    monkeypatch.setattr(db, "DOSSIER_DATA", str(tmp_path))
+    monkeypatch.setenv("IMAP_USER", "moi@example.com")
+    db.initialiser()
+    conn = db.connecter()
+    conn.execute("INSERT INTO biens(id, titre, demo) VALUES (1, 'b', 0), (2, 'c', 0)")
+    conn.execute("INSERT INTO annonces(bien_id, source, url, id_externe, date_reception) VALUES "
+                 "(1, 'Immotop', '', 'abc123', '2026-01-01 10:00'), "
+                 "(2, 'SeLoger', 'https://www.seloger.com/annonce/achat/x/ABCDEFGH12', 'ABCDEFGH12', '2026-01-01')")
+    conn.commit()
+    corps = retraits.corps_email_retrait(conn, 1)
+    assert "annonce: Immotop|abc123" in corps
+    assert retraits.est_email_retrait({"subject": "#retire annonce retirée", "from": "Moi <moi@example.com>"})
+    assert not retraits.est_email_retrait({"subject": "#retire", "from": "autre@example.com"})
+    assert retraits.appliquer_email_retrait(conn, corps + "\nhttps://www.seloger.com/annonce/achat/x/ABCDEFGH12") == 2
+    assert {r[0] for r in conn.execute("SELECT statut FROM biens")} == {"retiré"}
+    conn.close()
+
+
+def test_badge_ancienne_annonce():
+    import app
+    b = {"derniere_vue": "2026-01-01 10:00", "confirme": 0, "statut": "nouveau"}
+    assert app.est_ancienne(b, "2026-03-01")
+    assert not app.est_ancienne(dict(b, confirme=1), "2026-03-01")      # vu en ligne sur atHome
+    assert not app.est_ancienne(b, "2025-12-01")                         # pas encore 60 jours
+    assert not app.est_ancienne(b, None)                                 # réglage à 0 = désactivé

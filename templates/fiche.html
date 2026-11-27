@@ -5,6 +5,13 @@
 <h1>{{ b.titre or 'Bien' }} {% if b.demo %}<span class="badge demo">démo</span>{% endif %}</h1>
 {% if b.statut == 'retiré' %}<div class="flash rouge">Annonce retirée du site{% if b.date_retrait %} (constaté le {{ b.date_retrait }}){% endif %} : le bien n'apparaît plus dans la liste.
   {% if not statique %}<form method="post" action="{{ url_for('remettre', bien_id=b.id) }}" style="display:inline"><button type="submit" class="secondaire">Remettre dans la liste</button></form>{% endif %}</div>{% endif %}
+{% if b is ancienne(seuil_ancien) %}<div class="flash">Ancienne annonce : vue pour la dernière fois le {{ b.derniere_vue[:10] }} et jamais confirmée en ligne. Elle est peut-être vendue ; elle est masquée de la liste.</div>{% endif %}
+{% if b.statut != 'retiré' %}<div class="actions">
+  {% if statique %}{% if moi %}<a class="bouton secondaire" href="mailto:{{ moi }}?subject={{ '#retire annonce retirée'|urlencode }}&amp;body={{ corps_retrait|urlencode }}">Signaler comme retirée</a>
+  <span class="petit">(prépare un e-mail à vous-même ; envoyez-le, la liste sera mise à jour en moins de 2 h)</span>{% endif %}
+  {% else %}<form method="post" action="{{ url_for('retirer', bien_id=b.id) }}" style="display:inline"
+        onsubmit="return confirm('Retirer ce bien de la liste (PC et téléphone) ?')"><button type="submit" class="secondaire">Marquer comme retirée</button></form>{% endif %}
+</div>{% endif %}
 {% if b.hors_criteres %}<div class="flash rouge">Hors critères : {{ b.hors_criteres }}</div>{% endif %}
 
 <div class="cartes">

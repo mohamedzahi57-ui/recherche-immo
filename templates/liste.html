@@ -29,6 +29,7 @@
       </select></label>
   </div>
   <label class="case"><input type="checkbox" data-f="tous"> Afficher aussi les biens hors critères</label>
+  <label class="case"><input type="checkbox" data-f="anciennes"> Afficher aussi les anciennes annonces (peut-être vendues)</label>
   <div class="actions"><button type="button" data-f="raz" class="secondaire">Réinitialiser</button></div>
 </details>
 <p class="petit">Touchez un titre de colonne pour trier.</p>
@@ -73,6 +74,7 @@
     </div>
     <label class="case"><input type="checkbox" name="tous" value="1" {{ 'checked' if f.get('tous') }}> Afficher aussi les biens hors critères</label>
     <label class="case"><input type="checkbox" name="retires" value="1" {{ 'checked' if f.get('retires') }}> Afficher aussi les annonces retirées des sites</label>
+    <label class="case"><input type="checkbox" name="anciennes" value="1" {{ 'checked' if f.get('anciennes') }}> Afficher aussi les anciennes annonces (peut-être vendues)</label>
     <div class="actions">
       <button type="submit">Appliquer</button>
       <a href="{{ url_for('liste') }}">Réinitialiser</a>
@@ -81,7 +83,7 @@
 </details>
 {% endif %}
 
-<p class="compteur">{% if statique %}<span id="compteur-js">{{ biens|rejectattr('hors_criteres')|list|length }}</span>{% else %}{{ biens|length }}{% endif %} bien(s) affiché(s) sur {{ nb_total }} en base.
+<p class="compteur">{% if statique %}<span id="compteur-js">{{ biens|rejectattr('hors_criteres')|reject('ancienne', seuil_ancien)|list|length }}</span>{% else %}{{ biens|length }}{% endif %} bien(s) affiché(s) sur {{ nb_total }} en base.
 {% if nb_total == 0 %}Aucun bien pour l'instant : allez sur <a href="{{ url_for('page_import') }}">Import</a> (vous pouvez essayer le mode démo).{% endif %}</p>
 
 <table class="tableau">
@@ -100,7 +102,7 @@
   </tr></thead>
   <tbody>
   {% for b in biens %}
-    <tr class="{{ 'hors' if b.hors_criteres }} {{ 'deux-ch' if (b.chambres or 0) >= p.chambres_ideal }}" onclick="location.href='{{ url_for('fiche', bien_id=b.id) }}'"{% if statique %} data-score="{{ b.score or 0 }}" data-commune="{{ (b.commune or '')|lower }}{% if b.quartier %} {{ b.quartier|lower }}{% endif %}" data-type="{{ b.type_bien or '' }}" data-pays="{{ b.pays or '' }}" data-prix="{{ b.prix or '' }}" data-surface="{{ b.surface or '' }}" data-prix_m2="{{ b.prix_m2 or '' }}" data-chambres="{{ b.chambres if b.chambres is not none else '' }}" data-voiture="{{ b.trajet_voiture_min or '' }}" data-transports="{{ b.trajet_tc_min or '' }}" data-cout="{{ b.cout_total or '' }}" data-hors="{{ 1 if b.hors_criteres else 0 }}"{% if b.hors_criteres %} hidden{% endif %}{% endif %}>
+    <tr class="{{ 'hors' if b.hors_criteres }} {{ 'deux-ch' if (b.chambres or 0) >= p.chambres_ideal }}" onclick="location.href='{{ url_for('fiche', bien_id=b.id) }}'"{% if statique %} data-score="{{ b.score or 0 }}" data-commune="{{ (b.commune or '')|lower }}{% if b.quartier %} {{ b.quartier|lower }}{% endif %}" data-type="{{ b.type_bien or '' }}" data-pays="{{ b.pays or '' }}" data-prix="{{ b.prix or '' }}" data-surface="{{ b.surface or '' }}" data-prix_m2="{{ b.prix_m2 or '' }}" data-chambres="{{ b.chambres if b.chambres is not none else '' }}" data-voiture="{{ b.trajet_voiture_min or '' }}" data-transports="{{ b.trajet_tc_min or '' }}" data-cout="{{ b.cout_total or '' }}" data-hors="{{ 1 if b.hors_criteres else 0 }}" data-ancienne="{{ 1 if b is ancienne(seuil_ancien) else 0 }}"{% if b.hors_criteres or b is ancienne(seuil_ancien) %} hidden{% endif %}{% endif %}>
       <td data-l="Score"><span class="score s{{ ((b.score or 0)//20)|int }}">{{ b.score|int if b.score is not none else '?' }}</span></td>
       <td data-l="Bien"><a href="{{ url_for('fiche', bien_id=b.id) }}">{{ b.titre or 'Bien' }}</a>
         {% if b.demo %}<span class="badge demo">démo</span>{% endif %}
@@ -109,6 +111,7 @@
         {% if b.prefabrique %}<span class="badge ok">préfabriquée</span>{% endif %}
         {% if b.terrasse %}<span class="badge">terrasse</span>{% endif %}
         {% if b.travaux %}<span class="badge alerte">travaux</span>{% endif %}
+        {% if b is ancienne(seuil_ancien) %}<span class="badge alerte">ancienne annonce</span>{% endif %}
         <div class="petit">{{ b.sources }}</div>
         {% if b.hors_criteres %}<div class="petit rouge">Hors critères : {{ b.hors_criteres }}</div>{% endif %}
       </td>
