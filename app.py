@@ -120,9 +120,16 @@ def liste():
     if f.get("pays"):
         conditions.append("pays = ?")
         valeurs.append(f["pays"])
-    if f.get("commune"):
+    choix = (f.get("commune") or "").strip().lower()
+    if choix.startswith("q:"):  # quartier de Luxembourg-ville choisi dans le menu
+        conditions.append("lower(COALESCE(quartier, '')) = ?")
+        valeurs.append(choix[2:])
+    elif choix.startswith("c:"):  # commune choisie dans le menu
+        conditions.append("lower(commune) = ?")
+        valeurs.append(choix[2:])
+    elif choix:  # texte libre (ancienne recherche)
         conditions.append("(lower(commune) LIKE ? OR lower(COALESCE(quartier, '')) LIKE ?)")
-        valeurs += [f"%{f['commune'].lower()}%"] * 2
+        valeurs += [f"%{choix}%"] * 2
     for champ, op, cle in (("prix", "<=", "prix_max"), ("prix", ">=", "prix_min"), ("surface", ">=", "surface_min"),
                            ("chambres", ">=", "chambres_min"), ("prix_m2", "<=", "prix_m2_max"),
                            ("score", ">=", "score_min"), ("surface", "<=", "surface_max"),
@@ -152,9 +159,18 @@ def liste():
             f"(SELECT url FROM annonces a WHERE a.bien_id = b.id LIMIT 1) url, {SQL_ANCIENNETE} "
             f"FROM biens b {where} ORDER BY {tri} IS NULL, {tri} {ordre}, score DESC", valeurs).fetchall()
         nb_total = conn.execute("SELECT count(*) n FROM biens WHERE COALESCE(statut, '') != 'retiré'").fetchone()["n"]
+        # listes du menu déroulant « Commune ou quartier » (biens encore en ligne)
+        communes = conn.execute(
+            "SELECT commune, COALESCE(pays, '') pays FROM biens WHERE commune IS NOT NULL AND commune != '' "
+            "AND COALESCE(statut, '') != 'retiré' GROUP BY lower(commune) ORDER BY pays = '', "
+            "CASE pays WHEN 'LU' THEN 0 WHEN 'FR' THEN 1 WHEN 'BE' THEN 2 ELSE 3 END, commune").fetchall()
+        quartiers = [r[0] for r in conn.execute(
+            "SELECT DISTINCT quartier FROM biens WHERE quartier IS NOT NULL AND COALESCE(statut, '') != 'retiré' "
+            "ORDER BY quartier")]
         p = parametres.lire(conn)
     return render_template("liste.html", biens=biens, f=f, tri=f.get("tri", "score"), ordre=ordre.lower(),
-                           nb_total=nb_total, p=p, seuil_ancien=seuil_ancien(p))
+                           nb_total=nb_total, p=p, seuil_ancien=seuil_ancien(p), communes=communes,
+                           quartiers=quartiers)
 
 
 @app.route("/bien/<int:bien_id>", methods=["GET", "POST"])

@@ -62,7 +62,9 @@ function appliquerFiltres() {
     const d = tr.dataset, prix = nombre(d.prix), m2 = nombre(d.surface);
     const ok = (f.tous || d.hors === "0") && (f.anciennes || d.ancienne !== "1")
       && (n("score_min") == null || +d.score >= n("score_min"))
-      && (!commune || d.commune.includes(commune))
+      && (!commune || (commune.startsWith("q:") ? d.quartier === commune.slice(2)
+                       : commune.startsWith("c:") ? d.commune === commune.slice(2)
+                       : (d.commune + " " + d.quartier).includes(commune)))
       && (!f.type || (f.type === "prefab" ? d.prefab === "1" : d.type === f.type))
       && (!f.pays || d.pays === f.pays)
       && (n("prix_min") == null || (prix != null && prix >= n("prix_min")))
@@ -124,6 +126,9 @@ function brancherListe() {
     });
   }
   brancherValeurs(panneau);
+  // ancienne recherche tapée à la main (avant le menu déroulant) : on l'oublie
+  const menu = panneau.querySelector('[data-f="commune"]');
+  if (menu && FILTRES.commune && menu.value !== FILTRES.commune) { FILTRES.commune = ""; menu.value = ""; }
   if (FILTRES.tri) { const [cle, desc] = FILTRES.tri.split("|"); TRI = { cle, desc: desc === "1" }; }
   if (Object.entries(FILTRES).some(([k, v]) => v && k !== "tri")) panneau.open = true;
   if (TRI.cle !== "score" || !TRI.desc) trier();

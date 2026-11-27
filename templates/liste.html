@@ -7,13 +7,26 @@
   <a href="{{ url_for('liste', **args) }}" class="{{ 'trie' if tri == cle }}">{{ libelle }}{% if tri == cle %} {{ '▲' if ordre == 'asc' else '▼' }}{% endif %}</a>{%- endif -%}
 {%- endmacro %}
 
+{% macro options_communes(valeur) -%}
+  <option value="">Toutes</option>
+  {% if quartiers %}<optgroup label="Luxembourg-ville : quartiers">
+    {% for q in quartiers %}<option value="q:{{ q|lower }}" {{ 'selected' if valeur == 'q:' ~ q|lower }}>Luxembourg – {{ q }}</option>{% endfor %}
+  </optgroup>{% endif %}
+  {% for pays, nom_pays in [('LU', 'Luxembourg'), ('FR', 'France'), ('BE', 'Belgique'), ('', 'Pays inconnu')] %}
+  {% set groupe = communes|selectattr('pays', 'equalto', pays)|list %}
+  {% if groupe %}<optgroup label="{{ nom_pays }}">
+    {% for c in groupe %}<option value="c:{{ c.commune|lower }}" {{ 'selected' if valeur == 'c:' ~ c.commune|lower }}>{{ c.commune }}</option>{% endfor %}
+  </optgroup>{% endif %}
+  {% endfor %}
+{%- endmacro %}
+
 {% if statique %}
 {# Version en ligne (consultation) : pas de formulaire, seulement les deux vues et le tri par colonne #}
 <details class="filtres" id="filtres-js">
   <summary>Filtres</summary>
   <div class="grille">
     <label>Score min <input data-f="score_min" inputmode="numeric" placeholder="ex. 50"></label>
-    <label>Commune ou quartier <input data-f="commune" placeholder="ex. Esch, Gare"></label>
+    <label>Commune ou quartier <select data-f="commune">{{ options_communes('') }}</select></label>
     <label>Type
       <select data-f="type"><option value="">Tous</option><option>maison</option><option>appartement</option><option>terrain</option><option value="prefab">maison préfabriquée / terrain</option></select></label>
     <label>Pays
@@ -44,7 +57,7 @@
           {% for c, n in [('LU','Luxembourg'),('FR','France'),('BE','Belgique')] %}
           <option value="{{ c }}" {{ 'selected' if f.get('pays') == c }}>{{ n }}</option>{% endfor %}
         </select></label>
-      <label>Commune ou quartier <input name="commune" value="{{ f.get('commune','') }}"></label>
+      <label>Commune ou quartier <select name="commune">{{ options_communes((f.get('commune') or '')|lower) }}</select></label>
       <label>Type
         <select name="type">
           <option value="">Tous</option>
@@ -126,7 +139,7 @@
   </tr></thead>
   <tbody>
   {% for b in biens %}
-    <tr class="{{ 'hors' if b.hors_criteres }} {{ 'deux-ch' if (b.chambres or 0) >= p.chambres_ideal }}" onclick="location.href='{{ url_for('fiche', bien_id=b.id) }}'"{% if statique %} data-score="{{ b.score or 0 }}" data-commune="{{ (b.commune or '')|lower }}{% if b.quartier %} {{ b.quartier|lower }}{% endif %}" data-type="{{ b.type_bien or '' }}" data-prefab="{{ 1 if (b.prefabrique or b.type_bien == 'terrain') else 0 }}" data-pays="{{ b.pays or '' }}" data-prix="{{ b.prix or '' }}" data-surface="{{ b.surface or '' }}" data-prix_m2="{{ b.prix_m2 or '' }}" data-chambres="{{ b.chambres if b.chambres is not none else '' }}" data-voiture="{{ b.trajet_voiture_min or '' }}" data-transports="{{ b.trajet_tc_min or '' }}" data-cout="{{ b.cout_total or '' }}" data-hors="{{ 1 if b.hors_criteres else 0 }}" data-ancienne="{{ 1 if b is ancienne(seuil_ancien) else 0 }}"{% if b.hors_criteres or b is ancienne(seuil_ancien) %} hidden{% endif %}{% endif %}>
+    <tr class="{{ 'hors' if b.hors_criteres }} {{ 'deux-ch' if (b.chambres or 0) >= p.chambres_ideal }}" onclick="location.href='{{ url_for('fiche', bien_id=b.id) }}'"{% if statique %} data-score="{{ b.score or 0 }}" data-commune="{{ (b.commune or '')|lower }}" data-quartier="{{ (b.quartier or '')|lower }}" data-type="{{ b.type_bien or '' }}" data-prefab="{{ 1 if (b.prefabrique or b.type_bien == 'terrain') else 0 }}" data-pays="{{ b.pays or '' }}" data-prix="{{ b.prix or '' }}" data-surface="{{ b.surface or '' }}" data-prix_m2="{{ b.prix_m2 or '' }}" data-chambres="{{ b.chambres if b.chambres is not none else '' }}" data-voiture="{{ b.trajet_voiture_min or '' }}" data-transports="{{ b.trajet_tc_min or '' }}" data-cout="{{ b.cout_total or '' }}" data-hors="{{ 1 if b.hors_criteres else 0 }}" data-ancienne="{{ 1 if b is ancienne(seuil_ancien) else 0 }}"{% if b.hors_criteres or b is ancienne(seuil_ancien) %} hidden{% endif %}{% endif %}>
       <td data-l="Score"><span class="score s{{ ((b.score or 0)//20)|int }}">{{ b.score|int if b.score is not none else '?' }}</span></td>
       <td data-l="Bien"><a href="{{ url_for('fiche', bien_id=b.id) }}">{{ b.titre or 'Bien' }}</a>
         {% if b.demo %}<span class="badge demo">démo</span>{% endif %}
