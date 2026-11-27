@@ -9,12 +9,12 @@
 
 {% macro options_communes(valeur) -%}
   <option value="">Toutes</option>
-  {% if quartiers %}<optgroup label="Luxembourg-ville : quartiers">
+  {% if quartiers %}<optgroup label="Luxembourg-ville : quartiers" data-pays="LU">
     {% for q in quartiers %}<option value="q:{{ q|lower }}" {{ 'selected' if valeur == 'q:' ~ q|lower }}>Luxembourg – {{ q }}</option>{% endfor %}
   </optgroup>{% endif %}
   {% for pays, nom_pays in [('LU', 'Luxembourg'), ('FR', 'France'), ('BE', 'Belgique'), ('', 'Pays inconnu')] %}
   {% set groupe = communes|selectattr('pays', 'equalto', pays)|list %}
-  {% if groupe %}<optgroup label="{{ nom_pays }}">
+  {% if groupe %}<optgroup label="{{ nom_pays }}" data-pays="{{ pays }}">
     {% for c in groupe %}<option value="c:{{ c.commune|lower }}" {{ 'selected' if valeur == 'c:' ~ c.commune|lower }}>{{ c.commune }}</option>{% endfor %}
   </optgroup>{% endif %}
   {% endfor %}
@@ -89,6 +89,21 @@
     <label class="case"><input type="checkbox" name="tous" value="1" {{ 'checked' if f.get('tous') }}> Afficher aussi les biens hors critères</label>
     <label class="case"><input type="checkbox" name="retires" value="1" {{ 'checked' if f.get('retires') }}> Afficher aussi les annonces retirées des sites</label>
     <label class="case"><input type="checkbox" name="anciennes" value="1" {{ 'checked' if f.get('anciennes') }}> Afficher aussi les anciennes annonces (peut-être vendues)</label>
+    <script>
+      // Le menu « Commune ou quartier » ne montre que les communes du pays choisi
+      (() => {
+        const pays = document.querySelector('select[name="pays"]'), menu = document.querySelector('select[name="commune"]');
+        const maj = () => {
+          for (const g of menu.querySelectorAll("optgroup")) {
+            const cache = !!pays.value && g.dataset.pays !== pays.value;
+            g.hidden = g.disabled = cache;
+          }
+          const o = menu.selectedOptions[0];
+          if (o && o.parentElement.disabled) menu.value = "";
+        };
+        pays.addEventListener("change", maj); maj();
+      })();
+    </script>
     <div class="actions">
       <button type="submit">Appliquer</button>
       <a href="{{ url_for('liste') }}">Réinitialiser</a>

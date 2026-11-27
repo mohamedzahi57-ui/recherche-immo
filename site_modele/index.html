@@ -52,9 +52,22 @@ let FILTRES = {}, TRI = { cle: "score", desc: true };
 try { FILTRES = JSON.parse(localStorage.getItem("immo_filtres") || "{}"); } catch (e) {}
 const nombre = v => (v === "" || v == null || isNaN(+v)) ? null : +v;
 
+// Le menu « Commune ou quartier » ne montre que les communes du pays choisi
+function majCommunes() {
+  const menu = document.querySelector('#app [data-f="commune"]');
+  if (!menu) return;
+  for (const g of menu.querySelectorAll("optgroup")) {
+    const cache = !!FILTRES.pays && g.dataset.pays !== FILTRES.pays;
+    g.hidden = g.disabled = cache;
+  }
+  const o = menu.selectedOptions[0];
+  if (o && o.parentElement.disabled) { menu.value = ""; FILTRES.commune = ""; }
+}
+
 function appliquerFiltres() {
   const tb = document.querySelector("#app .tableau tbody");
   if (!tb) return;
+  majCommunes();
   const f = FILTRES, n = k => nombre(f[k]);
   const commune = (f.commune || "").trim().toLowerCase();
   let vus = 0;
