@@ -93,7 +93,7 @@ def deballer_url(url):
             continue
         # URL encodée au milieu du chemin
         m = re.search(r"https?://[^\s\"'<>]+", dec[8:])
-        if m and any(k in m.group(0) for k in ("athome", "immotop", "wortimmo", "seloger", "immoweb")):
+        if m and any(k in m.group(0) for k in ("athome", "immotop", "wortimmo", "seloger", "immoweb", "leboncoin")):
             url = m.group(0)
             continue
         return dec
