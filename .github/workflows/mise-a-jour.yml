@@ -62,6 +62,11 @@ jobs:
       - name: Import des alertes e-mail
         run: python -c "from immo import db, importeur; db.initialiser(); print(importeur.importer())"
 
+      - name: Vérification des annonces retirées (atHome)
+        continue-on-error: true
+        timeout-minutes: 15
+        run: python -m immo.retraits 200
+
       - name: Fabrication du site
         run: python exporter_site.py
 

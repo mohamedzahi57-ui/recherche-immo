@@ -3,6 +3,8 @@
 {% block contenu %}
 <p><a href="{{ url_for('liste') }}">← Retour à la liste</a></p>
 <h1>{{ b.titre or 'Bien' }} {% if b.demo %}<span class="badge demo">démo</span>{% endif %}</h1>
+{% if b.statut == 'retiré' %}<div class="flash rouge">Annonce retirée du site{% if b.date_retrait %} (constaté le {{ b.date_retrait }}){% endif %} : le bien n'apparaît plus dans la liste.
+  {% if not statique %}<form method="post" action="{{ url_for('remettre', bien_id=b.id) }}" style="display:inline"><button type="submit" class="secondaire">Remettre dans la liste</button></form>{% endif %}</div>{% endif %}
 {% if b.hors_criteres %}<div class="flash rouge">Hors critères : {{ b.hors_criteres }}</div>{% endif %}
 
 <div class="cartes">
@@ -11,7 +13,7 @@
     <div class="gros">{{ b.prix|euros }}</div>
     <dl>
       <dt>Score</dt><dd><span class="score s{{ ((b.score or 0)//20)|int }}">{{ b.score|int if b.score is not none else '?' }}</span> / 100</dd>
-      <dt>Commune</dt><dd>{{ b.commune or '?' }} {{ b.code_postal or '' }} ({{ b.pays or '?' }})</dd>
+      <dt>Commune</dt><dd>{{ b.commune or '?' }}{% if b.quartier %} – {{ b.quartier }}{% endif %} {{ b.code_postal or '' }} ({{ b.pays or '?' }})</dd>
       <dt>Type</dt><dd>{{ b.type_bien or '?' }}{% if b.plain_pied %}, plain-pied{% endif %}{% if b.prefabrique %}, préfabriquée{% endif %}</dd>
       <dt>Surface</dt><dd>{{ b.surface or '?' }} m²</dd>
       <dt>Prix au m²</dt><dd>{{ b.prix_m2|euros }}</dd>

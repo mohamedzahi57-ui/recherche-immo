@@ -13,7 +13,7 @@
   <summary>Filtres</summary>
   <div class="grille">
     <label>Score min <input data-f="score_min" inputmode="numeric" placeholder="ex. 50"></label>
-    <label>Commune <input data-f="commune" placeholder="ex. Esch"></label>
+    <label>Commune ou quartier <input data-f="commune" placeholder="ex. Esch, Gare"></label>
     <label>Type
       <select data-f="type"><option value="">Tous</option><option>maison</option><option>appartement</option><option>terrain</option></select></label>
     <label>Pays
@@ -43,7 +43,7 @@
           {% for c, n in [('LU','Luxembourg'),('FR','France'),('BE','Belgique')] %}
           <option value="{{ c }}" {{ 'selected' if f.get('pays') == c }}>{{ n }}</option>{% endfor %}
         </select></label>
-      <label>Commune <input name="commune" value="{{ f.get('commune','') }}"></label>
+      <label>Commune ou quartier <input name="commune" value="{{ f.get('commune','') }}"></label>
       <label>Type
         <select name="type">
           <option value="">Tous</option>
@@ -72,6 +72,7 @@
         </select></label>
     </div>
     <label class="case"><input type="checkbox" name="tous" value="1" {{ 'checked' if f.get('tous') }}> Afficher aussi les biens hors critères</label>
+    <label class="case"><input type="checkbox" name="retires" value="1" {{ 'checked' if f.get('retires') }}> Afficher aussi les annonces retirées des sites</label>
     <div class="actions">
       <button type="submit">Appliquer</button>
       <a href="{{ url_for('liste') }}">Réinitialiser</a>
@@ -99,7 +100,7 @@
   </tr></thead>
   <tbody>
   {% for b in biens %}
-    <tr class="{{ 'hors' if b.hors_criteres }} {{ 'deux-ch' if (b.chambres or 0) >= p.chambres_ideal }}" onclick="location.href='{{ url_for('fiche', bien_id=b.id) }}'"{% if statique %} data-score="{{ b.score or 0 }}" data-commune="{{ (b.commune or '')|lower }}" data-type="{{ b.type_bien or '' }}" data-pays="{{ b.pays or '' }}" data-prix="{{ b.prix or '' }}" data-surface="{{ b.surface or '' }}" data-prix_m2="{{ b.prix_m2 or '' }}" data-chambres="{{ b.chambres if b.chambres is not none else '' }}" data-voiture="{{ b.trajet_voiture_min or '' }}" data-transports="{{ b.trajet_tc_min or '' }}" data-cout="{{ b.cout_total or '' }}" data-hors="{{ 1 if b.hors_criteres else 0 }}"{% if b.hors_criteres %} hidden{% endif %}{% endif %}>
+    <tr class="{{ 'hors' if b.hors_criteres }} {{ 'deux-ch' if (b.chambres or 0) >= p.chambres_ideal }}" onclick="location.href='{{ url_for('fiche', bien_id=b.id) }}'"{% if statique %} data-score="{{ b.score or 0 }}" data-commune="{{ (b.commune or '')|lower }}{% if b.quartier %} {{ b.quartier|lower }}{% endif %}" data-type="{{ b.type_bien or '' }}" data-pays="{{ b.pays or '' }}" data-prix="{{ b.prix or '' }}" data-surface="{{ b.surface or '' }}" data-prix_m2="{{ b.prix_m2 or '' }}" data-chambres="{{ b.chambres if b.chambres is not none else '' }}" data-voiture="{{ b.trajet_voiture_min or '' }}" data-transports="{{ b.trajet_tc_min or '' }}" data-cout="{{ b.cout_total or '' }}" data-hors="{{ 1 if b.hors_criteres else 0 }}"{% if b.hors_criteres %} hidden{% endif %}{% endif %}>
       <td data-l="Score"><span class="score s{{ ((b.score or 0)//20)|int }}">{{ b.score|int if b.score is not none else '?' }}</span></td>
       <td data-l="Bien"><a href="{{ url_for('fiche', bien_id=b.id) }}">{{ b.titre or 'Bien' }}</a>
         {% if b.demo %}<span class="badge demo">démo</span>{% endif %}
@@ -111,7 +112,7 @@
         <div class="petit">{{ b.sources }}</div>
         {% if b.hors_criteres %}<div class="petit rouge">Hors critères : {{ b.hors_criteres }}</div>{% endif %}
       </td>
-      <td data-l="Commune">{{ b.commune or '?' }} {% if b.pays %}<span class="pays">{{ b.pays }}</span>{% endif %}</td>
+      <td data-l="Commune">{{ b.commune or '?' }}{% if b.quartier %} <span class="quartier">– {{ b.quartier }}</span>{% endif %} {% if b.pays %}<span class="pays">{{ b.pays }}</span>{% endif %}</td>
       <td data-l="Prix">{{ b.prix|euros }}</td>
       <td data-l="Surface">{{ b.surface|int if b.surface else '—' }}</td>
       <td data-l="€/m²">{{ b.prix_m2|euros }}</td>

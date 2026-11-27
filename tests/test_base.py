@@ -149,3 +149,38 @@ def test_ajout_manuel(monkeypatch):
     monkeypatch.setenv("IMAP_USER", "moi@example.com")
     assert importeur.est_ajout_par_email({"subject": "Fwd: belle maison #immo", "from": "Moi <moi@example.com>"})
     assert not importeur.est_ajout_par_email({"subject": "#immo", "from": "autre@example.com"})
+
+
+def test_quartiers_luxembourg():
+    from immo import quartiers
+    assert quartiers.trouver("Studio 1 chambre à vendre à Luxembourg-Rollingergrund 490 000 €") == "Rollingergrund"
+    assert quartiers.trouver("€ 494 000 Appartement, Gasperich-Cloche d'or, Luxembourg") == "Gasperich / Cloche d'Or"
+    assert quartiers.trouver("Appartement à vendre à Luxembourg-Limpertsberg") == "Limpertsberg"
+    assert quartiers.trouver("Studio à vendre, Gare, Luxembourg") == "Gare"
+    assert quartiers.trouver("Maison à Bertrange, proche de la gare de Luxembourg") is None
+    assert quartiers.est_luxembourg_ville("Luxembourg") and not quartiers.est_luxembourg_ville("Esch-sur-Alzette")
+
+
+def test_annonces_retirees(monkeypatch, tmp_path):
+    from immo import db, retraits
+    monkeypatch.setattr(db, "CHEMIN_DB", str(tmp_path / "t.db"))
+    monkeypatch.setattr(db, "DOSSIER_DATA", str(tmp_path))
+    db.initialiser()
+    conn = db.connecter()
+    for i in (1, 2, 3):
+        conn.execute("INSERT INTO biens(id, titre, demo) VALUES (?, 'b', 0)", (i,))
+    conn.executemany("INSERT INTO annonces(bien_id, source, url, id_externe) VALUES (?,?,?,?)", [
+        (1, "atHome", "https://www.athome.lu/vente/maison/x/id-111.html", "111"),   # disparue
+        (2, "atHome", "https://www.athome.lu/id-222.html", "222"),                  # disparue...
+        (2, "atHome", "https://www.athome.lu/id-333.html", "333"),                  # ...mais doublon encore en ligne
+        (3, "Immotop", "https://www.immotop.lu/annonces/1/", "1"),                  # non vérifiable
+    ])
+    conn.commit()
+    reponses = {"111": "retiree", "222": "retiree", "333": "en_ligne"}
+    monkeypatch.setattr(retraits, "etat_annonce",
+                        lambda url, s=None: (reponses[url.split("id-")[1].split(".")[0]], 0))
+    bilan = retraits.verifier(conn, pause=0)
+    assert bilan["verifiees"] == 3 and bilan["biens_retires"] == 1
+    statuts = dict(conn.execute("SELECT id, statut FROM biens").fetchall())
+    assert statuts == {1: "retiré", 2: "nouveau", 3: "nouveau"}
+    conn.close()

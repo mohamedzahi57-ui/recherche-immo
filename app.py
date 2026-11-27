@@ -85,12 +85,14 @@ def liste():
     conditions, valeurs = [], []
     if not f.get("tous") and not app.jinja_env.globals.get("statique"):
         conditions.append("(hors_criteres IS NULL OR hors_criteres = '')")
+    if not f.get("retires"):  # annonces disparues des sites (voir immo/retraits.py)
+        conditions.append("COALESCE(statut, '') != 'retiré'")
     if f.get("pays"):
         conditions.append("pays = ?")
         valeurs.append(f["pays"])
     if f.get("commune"):
-        conditions.append("lower(commune) LIKE ?")
-        valeurs.append(f"%{f['commune'].lower()}%")
+        conditions.append("(lower(commune) LIKE ? OR lower(COALESCE(quartier, '')) LIKE ?)")
+        valeurs += [f"%{f['commune'].lower()}%"] * 2
     for champ, op, cle in (("prix", "<=", "prix_max"), ("prix", ">=", "prix_min"), ("surface", ">=", "surface_min"),
                            ("chambres", ">=", "chambres_min"), ("prix_m2", "<=", "prix_m2_max"),
                            ("score", ">=", "score_min"), ("surface", "<=", "surface_max"),
@@ -117,7 +119,7 @@ def liste():
             f"SELECT b.*, (SELECT group_concat(source, ', ') FROM annonces a WHERE a.bien_id = b.id) sources, "
             f"(SELECT url FROM annonces a WHERE a.bien_id = b.id LIMIT 1) url "
             f"FROM biens b {where} ORDER BY {tri} IS NULL, {tri} {ordre}, score DESC", valeurs).fetchall()
-        nb_total = conn.execute("SELECT count(*) n FROM biens").fetchone()["n"]
+        nb_total = conn.execute("SELECT count(*) n FROM biens WHERE COALESCE(statut, '') != 'retiré'").fetchone()["n"]
         p = parametres.lire(conn)
     return render_template("liste.html", biens=biens, f=f, tri=f.get("tri", "score"), ordre=ordre.lower(),
                            nb_total=nb_total, p=p)
@@ -165,6 +167,18 @@ def fiche(bien_id):
     note, detail_score = score.calculer_score(dict(b), p)
     return render_template("fiche.html", b=b, annonces=annonces, frais=detail_frais, detail_score=detail_score,
                            p=p, budget=p["prix_max"])
+
+
+@app.route("/bien/<int:bien_id>/remettre", methods=["POST"])
+@protege
+def remettre(bien_id):
+    """Remet dans la liste un bien marqué « retiré » par erreur (et ne le revérifie plus)."""
+    with db.connecter() as conn:
+        conn.execute("UPDATE biens SET statut = 'nouveau', date_retrait = NULL WHERE id = ?", (bien_id,))
+        conn.execute("UPDATE annonces SET retiree = -1 WHERE bien_id = ?", (bien_id,))  # -1 = ne plus vérifier
+        conn.commit()
+    flash("Le bien est de nouveau dans la liste.")
+    return redirect(url_for("fiche", bien_id=bien_id))
 
 
 @app.route("/ajouter", methods=["GET", "POST"])

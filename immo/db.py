@@ -128,6 +128,13 @@ def initialiser():
         colonnes = {r[1] for r in conn.execute("PRAGMA table_info(biens)")}
         if "prefabrique" not in colonnes:
             conn.execute("ALTER TABLE biens ADD COLUMN prefabrique INTEGER")
+        for nom, sql in (("quartier", "TEXT"), ("date_retrait", "TEXT")):
+            if nom not in colonnes:
+                conn.execute(f"ALTER TABLE biens ADD COLUMN {nom} {sql}")
+        colonnes = {r[1] for r in conn.execute("PRAGMA table_info(annonces)")}
+        for nom, sql in (("verifie_le", "TEXT"), ("retiree", "INTEGER DEFAULT 0")):
+            if nom not in colonnes:
+                conn.execute(f"ALTER TABLE annonces ADD COLUMN {nom} {sql}")
 
 
 def maintenant():

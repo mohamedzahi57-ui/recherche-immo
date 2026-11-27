@@ -4,7 +4,7 @@ import os
 import shutil
 import threading
 
-from . import boite_mail, extraction, frais, geo, parametres, score
+from . import boite_mail, extraction, frais, geo, parametres, quartiers, score
 from .db import connecter, journaliser, maintenant
 
 CHAMPS_ANNONCE = ["titre", "prix", "surface", "commune", "code_postal", "pays", "type_bien", "etage",
@@ -46,6 +46,8 @@ def enregistrer_annonce(conn, a, message, demo=False):
         # On complète les informations manquantes du bien existant (sans écraser)
         bien = conn.execute("SELECT * FROM biens WHERE id = ?", (bien_id,)).fetchone()
         maj = {k: a[k] for k in CHAMPS_ANNONCE if a.get(k) is not None and bien[k] is None}
+        if bien["statut"] == "retiré":  # de nouveau en ligne : on le remet dans la liste
+            conn.execute("UPDATE biens SET statut = 'nouveau', date_retrait = NULL WHERE id = ?", (bien_id,))
         if maj:
             conn.execute(f"UPDATE biens SET {', '.join(k + ' = ?' for k in maj)}, date_maj = ? WHERE id = ?",
                          (*maj.values(), maintenant(), bien_id))
@@ -105,6 +107,10 @@ def enrichir_bien(conn, bien_id, p, avec_reseau=True):
                 b["trajet_tc_min"], b["trajet_tc_source"] = tc, source
 
     b["prix_m2"] = round(b["prix"] / b["surface"]) if b["prix"] and b["surface"] else None
+    b["quartier"] = None
+    if quartiers.est_luxembourg_ville(b["commune"]):
+        textes = [r[0] for r in conn.execute("SELECT texte_brut FROM annonces WHERE bien_id = ?", (bien_id,))]
+        b["quartier"] = quartiers.trouver(*textes, b["titre"], b["description"])
     f = frais.calculer_frais(b["prix"], b["pays"], b["neuf"], p)
     b["frais_total"] = f["frais_total"] if f else None
     b["cout_total"] = f["cout_total"] if f else None
@@ -113,7 +119,7 @@ def enrichir_bien(conn, bien_id, p, avec_reseau=True):
 
     champs = ["lat", "lon", "pays", "distance_frontiere_km", "trajet_voiture_min", "trajet_voiture_source",
               "trajet_tc_min", "trajet_tc_source", "prix_m2", "frais_total", "cout_total", "hors_criteres",
-              "score"]
+              "score", "quartier"]
     conn.execute(f"UPDATE biens SET {', '.join(c + ' = ?' for c in champs)} WHERE id = ?",
                  (*[b[c] for c in champs], bien_id))
     conn.commit()
@@ -202,6 +208,17 @@ def _relire_alertes_immotop(conn):
     return plus_ancienne
 
 
+def completer_quartiers(conn):
+    """Quartier des biens de Luxembourg-ville qui n'en ont pas encore (calcul rapide, sans réseau)."""
+    for b in conn.execute("SELECT id, commune, titre, description FROM biens WHERE quartier IS NULL").fetchall():
+        if quartiers.est_luxembourg_ville(b["commune"]):
+            textes = [r[0] for r in conn.execute("SELECT texte_brut FROM annonces WHERE bien_id = ?", (b["id"],))]
+            q = quartiers.trouver(*textes, b["titre"], b["description"])
+            if q:
+                conn.execute("UPDATE biens SET quartier = ? WHERE id = ?", (q, b["id"]))
+    conn.commit()
+
+
 def importer(demo_dossier=None):
     """Lance un import complet. Retourne un résumé texte."""
     if not _verrou_import.acquire(blocking=False):
@@ -241,6 +258,7 @@ def importer(demo_dossier=None):
                 "OR trajet_voiture_source = 'estimation' OR score IS NULL").fetchall()
             for row in a_enrichir:
                 enrichir_bien(conn, row["id"], p)
+            completer_quartiers(conn)
 
             resume = (f"Import terminé : {stats['emails']} e-mail(s) lu(s), {stats['nouveaux']} nouveau(x) "
                       f"bien(s), {stats['doublons']} doublon(s) regroupé(s), {stats['ignores']} e-mail(s) "
