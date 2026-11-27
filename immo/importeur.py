@@ -145,6 +145,34 @@ def est_ajout_par_email(m):
         and moi in (m.get("from") or "").lower()
 
 
+MOT_CLE_COLLECTE = "#collecte"
+
+
+def est_collecte_par_email(m):
+    """E-mail à vous-même, objet « #collecte » : un lot d'annonces existantes (JSON) relevées sur un site.
+    Sert à transmettre ces annonces à la version en ligne, qui a sa propre base."""
+    moi = (os.getenv("IMAP_USER") or "").strip().lower()
+    return bool(moi) and MOT_CLE_COLLECTE in (m.get("subject") or "").lower() \
+        and moi in (m.get("from") or "").lower()
+
+
+def importer_collecte_email(conn, texte, p):
+    """Importe le lot JSON {"annonces": [{"url", "texte"}, ...]}. Renvoie le nombre de nouveaux biens."""
+    debut, fin = texte.find("{"), texte.rfind("}")
+    try:
+        annonces = json.loads(texte[debut:fin + 1])["annonces"]
+    except (ValueError, KeyError):
+        journaliser(conn, "E-mail #collecte illisible : rien importé.", "alerte")
+        return 0
+    stats = {"nouveau": 0, "doublon": 0, "deja_vu": 0}
+    for a in annonces:
+        res, _ = ajouter_manuellement(conn, a.get("texte", ""), a.get("url", ""), p, origine="collecte")
+        stats[res] += 1
+    journaliser(conn, f"Lot d'annonces existantes reçu par e-mail : {stats['nouveau']} nouveau(x) bien(s), "
+                      f"{stats['doublon']} doublon(s) regroupé(s), {stats['deja_vu']} déjà connue(s).")
+    return stats["nouveau"]
+
+
 def ajouter_manuellement(conn, texte, url, p, origine="formulaire"):
     """Ajoute un bien à partir du texte et/ou du lien collés. Retourne (résultat, id du bien)."""
     a = extraction.annonce_manuelle(texte, url)
@@ -170,6 +198,14 @@ def traiter_messages(conn, messages, p, demo=False):
                          (m["id"], m["subject"], m["from"], m["date"], 0, m["origine"], maintenant()))
             conn.commit()
             stats["emails"] += 1
+            continue
+        if est_collecte_par_email(m):
+            nb = importer_collecte_email(conn, m.get("text") or "", p)
+            conn.execute("INSERT OR IGNORE INTO emails_traites VALUES (?,?,?,?,?,?,?)",
+                         (m["id"], m["subject"], m["from"], m["date"], nb, m["origine"], maintenant()))
+            conn.commit()
+            stats["emails"] += 1
+            stats["nouveaux"] += nb
             continue
         if est_ajout_par_email(m):
             texte = m.get("text") or extraction.BeautifulSoup(m.get("html") or "", "html.parser").get_text(" ")

@@ -254,3 +254,22 @@ def test_badge_ancienne_annonce():
     assert not app.est_ancienne(dict(b, confirme=1), "2026-03-01")      # vu en ligne sur atHome
     assert not app.est_ancienne(b, "2025-12-01")                         # pas encore 60 jours
     assert not app.est_ancienne(b, None)                                 # réglage à 0 = désactivé
+
+
+def test_lot_collecte_par_email(monkeypatch, tmp_path):
+    import json
+    from immo import db, importeur
+    monkeypatch.setattr(db, "CHEMIN_DB", str(tmp_path / "t.db"))
+    monkeypatch.setattr(db, "DOSSIER_DATA", str(tmp_path))
+    monkeypatch.setenv("IMAP_USER", "moi@example.com")
+    monkeypatch.setattr(importeur, "enrichir_bien", lambda *a, **k: None, raising=False)
+    db.initialiser()
+    conn = db.connecter()
+    lot = {"annonces": [{"url": "https://www.leboncoin.fr/ad/ventes_immobilieres/3314253566",
+                         "texte": "Zoufftgen 57330 · Maison 5 pièces 120 m² · 350000 €"}]}
+    m = {"id": "x", "subject": "#collecte Leboncoin", "from": "Moi <moi@example.com>", "date": "",
+         "text": "Lot\n" + json.dumps(lot), "origine": "imap"}
+    assert importeur.est_collecte_par_email(m) and not importeur.est_ajout_par_email(m)
+    assert importeur.importer_collecte_email(conn, m["text"], dict(P)) == 1
+    assert conn.execute("SELECT source FROM annonces").fetchone()[0] == "Leboncoin"
+    conn.close()
