@@ -90,3 +90,7 @@ code { word-break: break-all; font-size: .8rem; }
   .tableau td[data-l="Bien"]::before { content: none; }
   .tableau tr.deux-ch td:first-child { box-shadow: none; }
 }
+
+.constructeurs h3 { margin: 18px 0 8px; }
+.constructeurs h4 { margin: 0 0 4px; }
+.constructeurs p { margin: 8px 0; }

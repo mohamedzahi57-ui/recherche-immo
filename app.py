@@ -16,9 +16,10 @@ from flask import Flask, Response, flash, jsonify, redirect, render_template, re
 
 load_dotenv()  # lit le fichier .env (clés et mots de passe)
 
-from immo import boite_mail, db, frais, importeur, parametres, retraits, score  # noqa: E402
+from immo import boite_mail, constructeurs, db, frais, importeur, parametres, retraits, score  # noqa: E402
 
 app = Flask(__name__)
+app.jinja_env.globals["constructeurs"] = constructeurs
 app.secret_key = os.getenv("FLASK_SECRET", "cle-locale-" + str(os.getpid()))
 DOSSIER_DEMO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "exemples")
 
@@ -136,7 +137,9 @@ def liste():
         conditions.append("garage = 1")
     elif f.get("garage") == "garage_ou_parking":
         conditions.append("(garage = 1 OR parking = 1)")
-    if f.get("type"):
+    if f.get("type") == "prefab":  # maison préfabriquée, ou terrain pour en poser une
+        conditions.append("(type_bien = 'terrain' OR prefabrique = 1)")
+    elif f.get("type"):
         conditions.append("type_bien = ?")
         valeurs.append(f["type"])
 

@@ -63,7 +63,7 @@ function appliquerFiltres() {
     const ok = (f.tous || d.hors === "0") && (f.anciennes || d.ancienne !== "1")
       && (n("score_min") == null || +d.score >= n("score_min"))
       && (!commune || d.commune.includes(commune))
-      && (!f.type || d.type === f.type)
+      && (!f.type || (f.type === "prefab" ? d.prefab === "1" : d.type === f.type))
       && (!f.pays || d.pays === f.pays)
       && (n("prix_min") == null || (prix != null && prix >= n("prix_min")))
       && (n("prix_max") == null || (prix != null && prix <= n("prix_max")))
@@ -72,6 +72,8 @@ function appliquerFiltres() {
     tr.hidden = !ok;
     if (ok) vus++;
   }
+  const k = document.getElementById("constructeurs");
+  if (k) k.hidden = f.type !== "prefab";
   const c = document.getElementById("compteur-js");
   if (c) c.textContent = vus;
   try { localStorage.setItem("immo_filtres", JSON.stringify(FILTRES)); } catch (e) {}

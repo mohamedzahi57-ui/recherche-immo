@@ -15,7 +15,7 @@
     <label>Score min <input data-f="score_min" inputmode="numeric" placeholder="ex. 50"></label>
     <label>Commune ou quartier <input data-f="commune" placeholder="ex. Esch, Gare"></label>
     <label>Type
-      <select data-f="type"><option value="">Tous</option><option>maison</option><option>appartement</option><option>terrain</option></select></label>
+      <select data-f="type"><option value="">Tous</option><option>maison</option><option>appartement</option><option>terrain</option><option value="prefab">maison préfabriquée / terrain</option></select></label>
     <label>Pays
       <select data-f="pays"><option value="">Tous</option><option value="LU">Luxembourg</option><option value="FR">France</option><option value="BE">Belgique</option></select></label>
     <label>Prix min <input data-f="prix_min" inputmode="numeric"></label>
@@ -50,6 +50,7 @@
           <option value="">Tous</option>
           {% for t in ['maison','appartement','terrain'] %}
           <option {{ 'selected' if f.get('type') == t }}>{{ t }}</option>{% endfor %}
+          <option value="prefab" {{ 'selected' if f.get('type') == 'prefab' }}>maison préfabriquée / terrain</option>
         </select></label>
       <label>Prix min <input name="prix_min" inputmode="numeric" value="{{ f.get('prix_min','') }}"></label>
       <label>Prix max <input name="prix_max" inputmode="numeric" value="{{ f.get('prix_max','') }}"></label>
@@ -83,6 +84,29 @@
 </details>
 {% endif %}
 
+{% set c = constructeurs %}
+<details class="filtres constructeurs" id="constructeurs" open {% if statique or f.get('type') != 'prefab' %}hidden{% endif %}>
+  <summary>Constructeurs de maisons préfabriquées ({{ c.CONSTRUCTEURS|length }})</summary>
+  <ul class="petit">{% for r in c.REPERES %}<li>{{ r }}</li>{% endfor %}</ul>
+  {% for code, nom_pays in c.NOMS_PAYS.items() %}
+  <h3>{{ nom_pays }}</h3>
+  <div class="cartes">
+  {% for k in c.CONSTRUCTEURS if k.pays == code %}
+    <section class="carte">
+      <h4>{{ k.nom }}</h4>
+      <div class="petit">{{ k.ville }} · ★ {{ k.note }}</div>
+      <p>{{ k.description }}</p>
+      <p><strong>Offre :</strong> {{ k.offre }}<br><strong>Tarif :</strong> {{ k.tarif }}</p>
+      <p>{% if k.tel %}<a href="tel:{{ k.tel|replace(' ', '') }}">{{ k.tel }}</a>{% endif %}
+         {% if k.email %} · <a href="mailto:{{ k.email }}">{{ k.email }}</a>{% endif %}
+         {% if k.site %} · <a href="{{ k.site }}" target="_blank" rel="noopener">site web</a>{% endif %}</p>
+    </section>
+  {% endfor %}
+  </div>
+  {% endfor %}
+  <p class="petit">Sélection du {{ c.DATE_SELECTION }} d'après les notes publiques (avis clients agrégés pour les marques, avis Google pour les agences locales). Tarifs indicatifs hors terrain : demandez toujours un devis détaillé (fondations, raccordements, finitions).</p>
+</details>
+
 <p class="compteur">{% if statique %}<span id="compteur-js">{{ biens|rejectattr('hors_criteres')|reject('ancienne', seuil_ancien)|list|length }}</span>{% else %}{{ biens|length }}{% endif %} bien(s) affiché(s) sur {{ nb_total }} en base.
 {% if nb_total == 0 %}Aucun bien pour l'instant : allez sur <a href="{{ url_for('page_import') }}">Import</a> (vous pouvez essayer le mode démo).{% endif %}</p>
 
@@ -102,7 +126,7 @@
   </tr></thead>
   <tbody>
   {% for b in biens %}
-    <tr class="{{ 'hors' if b.hors_criteres }} {{ 'deux-ch' if (b.chambres or 0) >= p.chambres_ideal }}" onclick="location.href='{{ url_for('fiche', bien_id=b.id) }}'"{% if statique %} data-score="{{ b.score or 0 }}" data-commune="{{ (b.commune or '')|lower }}{% if b.quartier %} {{ b.quartier|lower }}{% endif %}" data-type="{{ b.type_bien or '' }}" data-pays="{{ b.pays or '' }}" data-prix="{{ b.prix or '' }}" data-surface="{{ b.surface or '' }}" data-prix_m2="{{ b.prix_m2 or '' }}" data-chambres="{{ b.chambres if b.chambres is not none else '' }}" data-voiture="{{ b.trajet_voiture_min or '' }}" data-transports="{{ b.trajet_tc_min or '' }}" data-cout="{{ b.cout_total or '' }}" data-hors="{{ 1 if b.hors_criteres else 0 }}" data-ancienne="{{ 1 if b is ancienne(seuil_ancien) else 0 }}"{% if b.hors_criteres or b is ancienne(seuil_ancien) %} hidden{% endif %}{% endif %}>
+    <tr class="{{ 'hors' if b.hors_criteres }} {{ 'deux-ch' if (b.chambres or 0) >= p.chambres_ideal }}" onclick="location.href='{{ url_for('fiche', bien_id=b.id) }}'"{% if statique %} data-score="{{ b.score or 0 }}" data-commune="{{ (b.commune or '')|lower }}{% if b.quartier %} {{ b.quartier|lower }}{% endif %}" data-type="{{ b.type_bien or '' }}" data-prefab="{{ 1 if (b.prefabrique or b.type_bien == 'terrain') else 0 }}" data-pays="{{ b.pays or '' }}" data-prix="{{ b.prix or '' }}" data-surface="{{ b.surface or '' }}" data-prix_m2="{{ b.prix_m2 or '' }}" data-chambres="{{ b.chambres if b.chambres is not none else '' }}" data-voiture="{{ b.trajet_voiture_min or '' }}" data-transports="{{ b.trajet_tc_min or '' }}" data-cout="{{ b.cout_total or '' }}" data-hors="{{ 1 if b.hors_criteres else 0 }}" data-ancienne="{{ 1 if b is ancienne(seuil_ancien) else 0 }}"{% if b.hors_criteres or b is ancienne(seuil_ancien) %} hidden{% endif %}{% endif %}>
       <td data-l="Score"><span class="score s{{ ((b.score or 0)//20)|int }}">{{ b.score|int if b.score is not none else '?' }}</span></td>
       <td data-l="Bien"><a href="{{ url_for('fiche', bien_id=b.id) }}">{{ b.titre or 'Bien' }}</a>
         {% if b.demo %}<span class="badge demo">démo</span>{% endif %}
