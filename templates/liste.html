@@ -117,20 +117,23 @@
   <summary>Constructeurs de maisons préfabriquées ({{ c.CONSTRUCTEURS|length }})</summary>
   <ul class="petit">{% for r in c.REPERES %}<li>{{ r }}</li>{% endfor %}</ul>
   {% for code, nom_pays in c.NOMS_PAYS.items() %}
-  <h3>{{ nom_pays }}</h3>
-  <div class="cartes">
-  {% for k in c.CONSTRUCTEURS if k.pays == code %}
-    <section class="carte">
-      <h4>{{ k.nom }}</h4>
-      <div class="petit">{{ k.ville }} · ★ {{ k.note }}</div>
-      <p>{{ k.description }}</p>
-      <p><strong>Offre :</strong> {{ k.offre }}<br><strong>Tarif :</strong> {{ k.tarif }}</p>
-      <p>{% if k.tel %}<a href="tel:{{ k.tel|replace(' ', '') }}">{{ k.tel }}</a>{% endif %}
-         {% if k.email %} · <a href="mailto:{{ k.email }}">{{ k.email }}</a>{% endif %}
-         {% if k.site %} · <a href="{{ k.site }}" target="_blank" rel="noopener">site web</a>{% endif %}</p>
-    </section>
-  {% endfor %}
-  </div>
+  {% set liste = c.CONSTRUCTEURS|selectattr('pays', 'equalto', code)|list %}
+  <details class="pays-constructeurs">
+    <summary>{{ nom_pays }} ({{ liste|length }})</summary>
+    {% for k in liste %}
+    <details class="constructeur">
+      <summary>{{ k.nom }}</summary>
+      <section class="carte">
+        <div class="petit">{{ k.ville }} · ★ {{ k.note }}</div>
+        <p>{{ k.description }}</p>
+        <p><strong>Offre :</strong> {{ k.offre }}<br><strong>Tarif :</strong> {{ k.tarif }}</p>
+        <p>{% if k.tel %}<a href="tel:{{ k.tel|replace(' ', '') }}">{{ k.tel }}</a>{% endif %}
+           {% if k.email %} · <a href="mailto:{{ k.email }}">{{ k.email }}</a>{% endif %}
+           {% if k.site %} · <a href="{{ k.site }}" target="_blank" rel="noopener">site web</a>{% endif %}</p>
+      </section>
+    </details>
+    {% endfor %}
+  </details>
   {% endfor %}
   <p class="petit">Sélection du {{ c.DATE_SELECTION }} d'après les notes publiques (avis clients agrégés pour les marques, avis Google pour les agences locales). Tarifs indicatifs hors terrain : demandez toujours un devis détaillé (fondations, raccordements, finitions).</p>
 </details>

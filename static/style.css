@@ -94,3 +94,8 @@ code { word-break: break-all; font-size: .8rem; }
 .constructeurs h3 { margin: 18px 0 8px; }
 .constructeurs h4 { margin: 0 0 4px; }
 .constructeurs p { margin: 8px 0; }
+.constructeurs details.pays-constructeurs { margin: 10px 0; }
+.constructeurs details.pays-constructeurs > summary { font-weight: 700; font-size: 1.05rem; padding: 6px 0; cursor: pointer; }
+.constructeurs details.constructeur { margin: 4px 0 4px 18px; }
+.constructeurs details.constructeur > summary { padding: 6px 0; cursor: pointer; color: var(--accent, #0b6e4f); }
+.constructeurs details.constructeur .carte { margin: 6px 0 10px; }

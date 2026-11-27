@@ -123,4 +123,4 @@ CONSTRUCTEURS = [
      "tel": "+48 508 108 060", "email": "biuro@firsthome.pl", "site": "https://www.firsthome.pl/en/"},
 ]
 
-NOMS_PAYS = {"LU": "Luxembourg", "DE": "Allemagne", "FR": "France (Lorraine)", "PL": "Pologne"}
+NOMS_PAYS = {"FR": "France (Lorraine)", "LU": "Luxembourg", "DE": "Allemagne", "PL": "Pologne"}
