@@ -25,7 +25,8 @@ Clemency, Fingig, Sanem, Käerjeng, Bascharage, Hautcharage, Linger, Wiltz, Vian
 Weiswampach, Wincrange, Parc Hosingen, Hosingen, Kiischpelt, Goesdorf, Esch-sur-Sûre, Lac de la Haute-Sûre,
 Boulaide, Feulen, Mertzig, Bettendorf, Reisdorf, Beaufort, Vallée de l'Ernz, Waldbillig, Tandel, Putscheid,
 Bourscheid, Erpeldange-sur-Sûre, Mondercange, Sandweiler, Weiler, Lenningen, Waldbredimus, Bettembourg,
-Strassen, Bereldange, Heisdorf, Mullendorf, Hunsdorf, Pettingen
+Strassen, Bereldange, Heisdorf, Mullendorf, Hunsdorf, Pettingen, Haut-Martelange, Rombach-Martelange, Dirbach,
+Redange/Attert, Rosport-Mompach
 """
 
 # Communes françaises proches de la frontière luxembourgeoise
@@ -64,12 +65,21 @@ def _liste(bloc):
 QUARTIERS_LUX = {"bonnevoie", "gasperich", "cessange", "merl", "belair", "kirchberg", "limpertsberg",
                  "hollerich", "luxembourg ville"}
 
+# Localités rattachées à une commune (le quartier Belval est à Esch-sur-Alzette)
+LOCALITES = {"belval": "Esch-sur-Alzette", "haut martelange": "Rambrouch", "rombach martelange": "Rambrouch",
+             "dirbach": "Goesdorf", "redange attert": "Redange", "rosport mompach": "Rosport-Mompach"}
+
+# « rue de Longwy », « route de Thionville » : un nom de rue, pas la commune du bien
+RE_RUE = re.compile(r" (?:rue|route|rte|avenue|av|boulevard|bd|chemin|place|allee|impasse)(?: [a-z]+){0,3} $"
+                    # « 23 Michel Rodange, Gare » : numéro + prénom avant le nom = une rue
+                    r"| \d{1,3}[a-z]? (?!(?:chambres?|pieces?|ares?|m|a|au|en|et|de)\b)[a-z]+ $")
+
 # Index : nom normalisé -> (nom affiché, pays)
 INDEX = {}
 for _pays, _bloc in (("FR", FR), ("BE", BE), ("LU", LU)):  # LU en dernier = prioritaire en cas d'homonyme
     for _nom in _liste(_bloc):
         _n = normaliser(_nom)
-        affiche = "Luxembourg" if _n in QUARTIERS_LUX else _nom
+        affiche = "Luxembourg" if _n in QUARTIERS_LUX else LOCALITES.get(_n, _nom)
         INDEX[_n] = (affiche, _pays)
 
 # Noms triés du plus long au plus court (pour reconnaître "Esch-sur-Alzette" avant "Esch")
@@ -78,16 +88,48 @@ _MOTS_AMBIGUS = {"esch", "weiler", "ell", "wahl", "thil", "lexy", "hagen", "bous
 
 
 def trouver_commune(texte):
-    """Cherche une commune connue dans un texte. Retourne (nom, pays) ou (None, None)."""
-    t = " " + normaliser(texte) + " "
+    """Cherche une commune connue dans un texte. Retourne (nom, pays) ou (None, None).
+
+    On garde celle qui apparaît EN PREMIER (à égalité, le nom le plus long) : la commune du bien
+    vient avant le nom de l'agence (« … à vendre à Ettelbruck … Engel & Völkers LUXEMBOURG »)."""
+    # les virgules et parenthèses deviennent le repère « , » ; le reste de la ponctuation disparaît
+    t = re.sub(r"[,;()]", " , ", texte or "")
+    t = " " + re.sub(r"[^a-z0-9 ,]", " ", normaliser(t)) + " "
+    t = re.sub(r" +", " ", t)
+    meilleur = None
     for nom in _NOMS_TRIES:
-        if f" {nom} " in t:
-            if nom in _MOTS_AMBIGUS and len(nom) <= 5:
-                # mots courts : on exige un contexte typique ("à Ell", "Ell (L-...)", etc.)
-                if not re.search(rf"(?: a | in | l \d{{4}} | \d{{4,5}} ){re.escape(nom)} ", t):
-                    continue
-            return INDEX[nom]
-    return None, None
+        pos = t.find(f" {nom} ")
+        while pos != -1:
+            ambigu = nom in _MOTS_AMBIGUS and len(nom) <= 5
+            # mots courts : on exige un contexte typique ("à Ell", "Ell (L-...)", etc.)
+            contexte_ok = not ambigu or re.search(rf"(?: a | in | l \d{{4}} | \d{{4,5}} ){re.escape(nom)} $",
+                                                  t[:pos + len(nom) + 2])
+            if contexte_ok and not RE_RUE.search(t[max(0, pos - 40):pos + 1]):
+                if meilleur is None or pos < meilleur[0]:
+                    meilleur = (pos, nom)
+                break
+            pos = t.find(f" {nom} ", pos + 1)
+    if not meilleur:
+        return None, None
+    # Format « Bascharage, Käerjeng » / « Erpeldange (Wiltz) » : la localité est suivie de sa
+    # commune après une virgule, on garde la commune (sauf « …, Luxembourg » = le pays)
+    pos, nom = meilleur
+    mots = t[pos + len(nom) + 2:].split(" ")
+    i, sautes = 0, 0
+    while i < len(mots) and sautes <= 2:
+        if mots[i] == ",":
+            reste = " ".join(mots[i + 1:])
+            for autre in _NOMS_TRIES:
+                if autre == "luxembourg" or autre in _MOTS_AMBIGUS or nom.startswith(autre) or autre.startswith(nom):
+                    continue  # « Weiler-la-Tour, Weiler-la-Tour » : même lieu répété
+                if reste.startswith(autre + " "):
+                    return INDEX[autre]
+        elif mots[i].isalpha() and len(mots[i]) >= 3:
+            sautes += 1  # « Belval Sud-Lycée, Sanem » / « Septfontaines, Simmerschmelz, Habscht »
+        else:
+            break
+        i += 1
+    return INDEX[nom]
 
 
 def pays_de_commune(nom):

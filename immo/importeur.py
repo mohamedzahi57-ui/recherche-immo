@@ -208,6 +208,38 @@ def _relire_alertes_immotop(conn):
     return plus_ancienne
 
 
+def corriger_communes(conn):
+    """Une seule fois : relit la commune de chaque bien avec la règle « premier nom de lieu du texte »
+    (avant, le nom de l'agence, ex. « Engel & Völkers LUXEMBOURG », pouvait l'emporter).
+    Les communes corrigées à la main ne sont pas touchées. Les biens modifiés seront relocalisés."""
+    if conn.execute("SELECT 1 FROM parametres WHERE cle = '_communes_v2'").fetchone():
+        return 0
+    from . import communes
+    corriges = 0
+    for b in conn.execute("SELECT id, commune, pays, titre, champs_modifies FROM biens").fetchall():
+        if "commune" in (b["champs_modifies"] or "").split(","):
+            continue
+        a = conn.execute("SELECT texte_brut, url FROM annonces WHERE bien_id = ? ORDER BY id LIMIT 1",
+                         (b["id"],)).fetchone()
+        if not a:
+            continue
+        nom, pays = communes.trouver_commune(a["texte_brut"] or "")
+        if not nom or nom == b["commune"] or (nom == "Luxembourg" and b["commune"]):
+            continue
+        titre = b["titre"] or ""
+        if b["commune"] and titre.endswith(b["commune"]):
+            titre = titre[: -len(b["commune"])] + nom
+        conn.execute("UPDATE biens SET commune = ?, pays = ?, titre = ?, quartier = NULL, lat = NULL, lon = NULL, "
+                     "trajet_voiture_min = NULL, trajet_voiture_source = NULL, date_maj = ? WHERE id = ?",
+                     (nom, pays, titre, maintenant(), b["id"]))
+        corriges += 1
+    conn.execute("INSERT OR REPLACE INTO parametres(cle, valeur) VALUES ('_communes_v2', 'true')")
+    conn.commit()
+    if corriges:
+        journaliser(conn, f"Communes relues : {corriges} bien(s) corrigé(s) et relocalisé(s).")
+    return corriges
+
+
 def completer_quartiers(conn):
     """Quartier des biens de Luxembourg-ville qui n'en ont pas encore (calcul rapide, sans réseau)."""
     for b in conn.execute("SELECT id, commune, titre, description FROM biens WHERE quartier IS NULL").fetchall():
@@ -251,6 +283,7 @@ def importer(demo_dossier=None):
                         journaliser(conn, f"IMAP : {e}", "erreur")
 
             stats = traiter_messages(conn, messages, p, demo=bool(demo_dossier))
+            corriger_communes(conn)
 
             # Enrichissement des biens incomplets (position / trajets manquants)
             a_enrichir = conn.execute(

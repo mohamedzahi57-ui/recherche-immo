@@ -184,3 +184,43 @@ def test_annonces_retirees(monkeypatch, tmp_path):
     statuts = dict(conn.execute("SELECT id, statut FROM biens").fetchall())
     assert statuts == {1: "retiré", 2: "nouveau", 3: "nouveau"}
     conn.close()
+
+
+def test_commune_avant_nom_agence():
+    from immo import communes
+    t = communes.trouver_commune
+    assert t("Maison 3 chambres à vendre à Ettelbruck 1 111 € 241 m² Engel & Völkers LUXEMBOURG")[0] == "Ettelbruck"
+    assert t("Maison 5 chambres à vendre à Wiltz 295 000 € L'AGENCE Real Estate Bereldange")[0] == "Wiltz"
+    assert t("Maison individuelle rue de Longwy 98, Niederkorn, Differdange")[0] == "Differdange"
+    assert t("Studio à vendre, Belval-Université, Esch-sur-Alzette")[0] == "Esch-sur-Alzette"
+    assert t("programme neuf à Esch-sur-Alzette*** Nouveau projet à Belval")[0] == "Esch-sur-Alzette"
+    assert t("Studio à vendre à Luxembourg-Gare")[0] == "Luxembourg"
+
+
+def test_localite_suivie_de_sa_commune():
+    from immo import communes
+    t = communes.trouver_commune
+    assert t("Appartement deuxième étage, Bascharage, Käerjeng") == ("Käerjeng", "LU")
+    assert t("Maison 128 Rte de Longwy, Rodange, Pétange")[0] == "Pétange"
+    assert t("Maison 7, Rue Principale, Haut-Martelange, Wolwelange, Rambrouch") == ("Rambrouch", "LU")
+    assert t("Appartement 1 chambre Belval Esch-sur-Alzette, Luxembourg, Belval-Université")[0] == "Esch-sur-Alzette"
+
+
+def test_communes_composees():
+    from immo import communes
+    t = communes.trouver_commune
+    assert t("Terrain constructible, Lannen, Redange/Attert") == ("Redange", "LU")
+    assert t("Maison 383 m², Osweiler, Rosport-Mompach") == ("Rosport-Mompach", "LU")
+    assert t("Appartement 5,Rue Jean-Jacques Rousseau, Belval Sud-Lycée, Sanem")[0] == "Sanem"
+    assert t("Terrain non constructible, Septfontaines, Simmerschmelz, Habscht")[0] == "Habscht"
+    assert t("programme neuf à Steinfort À Hagen, au 14-16 A Rue Neuve") == ("Steinfort", "LU")
+
+
+def test_noms_de_rue():
+    from immo import communes
+    t = communes.trouver_commune
+    assert t("Appartement 1 chambre 23 michele rodange, Gare, Luxembourg")[0] == "Luxembourg"
+    assert t("Appartement 2 chambres 87, Route d'Arlon, Strassen")[0] == "Strassen"
+    assert t("Appartement rez-de-chaussée, Schifflange")[0] == "Schifflange"
+    assert t("Appartement 2 chambres neuf, rez-de-chaussée, Nocher, Nocher-Route, Goesdorf")[0] == "Goesdorf"
+    assert t("400 000 € Appartement - 1 chambre - 52 m 2 Belval")[0] == "Esch-sur-Alzette"
